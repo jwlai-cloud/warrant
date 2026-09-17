@@ -40,13 +40,19 @@ class OpenAICompatProvider(ChatProvider):
             "temperature": 0.0,
         }
 
-        # Nemotron thinking-budget control. Served through chat_template_kwargs
-        # on vLLM; Token Factory accepts the same shape. TODO(verify) against the
-        # Token Factory API reference before the 20 Sep gate.
+        # Nemotron thinking-budget control. vLLM exposes this as the top-level
+        # sampling parameter `thinking_token_budget`; when the reasoning token
+        # count reaches it, vLLM forces the reasoning-end token. It is NOT a
+        # chat_template_kwargs key - that only carries `enable_thinking`.
+        # https://docs.vllm.ai/en/latest/features/reasoning_outputs/
+        #
+        # Token Factory is OpenAI-compatible but does not document this
+        # parameter. Unknown parameters are ignored there rather than rejected,
+        # so the budget is a no-op on the managed tier and `max_tokens` is the
+        # only real bound. Do not read a deep-tier latency number as evidence
+        # that the budget applied.
         if self._cfg.reasoning_budget is not None:
-            payload["chat_template_kwargs"] = {
-                "reasoning_budget": self._cfg.reasoning_budget
-            }
+            payload["thinking_token_budget"] = self._cfg.reasoning_budget
 
         if json_schema is not None:
             payload["response_format"] = {

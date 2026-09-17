@@ -9,11 +9,21 @@
 
 **Why we chose it over alternatives:** see ADR-0002.
 
-**The specific parts we used:** `vllm serve`, the `nano_v3` reasoning-parser
-plugin, `--tool-call-parser qwen3_coder`, `--reasoning-parser-plugin`,
-`chat_template_kwargs.reasoning_budget`, `--mamba-cache-mode`.
+**The specific parts we used:** `python3 -m vllm.entrypoints.openai.api_server`,
+`--reasoning-parser-plugin` + `--reasoning-parser nano_v3`,
+`--mamba_ssm_cache_dtype float32`, `response_format: json_schema`, and the
+top-level `thinking_token_budget` sampling parameter.
 
-**What surprised us:**
+**What we deliberately did NOT use, and why:** `--tool-call-parser qwen3_coder`
+(WARRANT issues no tool calls) and `--reasoning-config` (open bug vllm#39103
+nulls out `content` on Nemotron 3). ADR-0006.
+
+**What surprised us:** the reasoning parser is the component most likely to
+break a JSON-schema call, because when it misfires the answer does not error -
+it lands in `reasoning_content` and `content` comes back `null`. Downstream that
+is indistinguishable from a model that returned nothing, and `classify.py` fails
+closed on it, so the system looks like it is working while the fast tier is doing
+nothing. `scripts/smoke_fast_tier.sh` exists specifically to catch that.
 
 **Primary sources:**
 - [vLLM recipe: Nemotron 3 Nano 30B](https://recipes.vllm.ai/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16) — launch flags, parser plugin, min vLLM version
@@ -29,11 +39,17 @@ plugin, `--tool-call-parser qwen3_coder`, `--reasoning-parser-plugin`,
 constant-size recurrent state instead of a growing KV cache, which is why the
 context window is so large and throughput holds up on long inputs.
 
-**The specific parts we used:** `reasoning_budget` (per-request cap on reasoning
-tokens, with documented graceful-close semantics), `enable_thinking`, JSON-schema
-constrained output for entity classification.
+**The specific parts we used:** `thinking_token_budget` (per-request cap on
+reasoning tokens - vLLM forces the reasoning-end token once the count is
+reached), `chat_template_kwargs.enable_thinking`, JSON-schema constrained output
+for entity classification.
 
-**What surprised us:**
+**What surprised us:** `reasoning_budget` is not a wire parameter and never was
+- the scaffold invented it by analogy. The real per-request knob is vLLM's
+top-level `thinking_token_budget`; `chat_template_kwargs` carries only
+`enable_thinking`. A third mechanism exists (a logits processor configured with
+`THINKING_BUDGET_LOGITS_PROCESSOR_ARGS` at server launch) which is server-wide,
+not per-request. Three similar-sounding things, one of them fictional.
 
 **Primary sources:**
 - [Nemotron 3 Nano 30B model card](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16)

@@ -69,8 +69,11 @@ refused.
   `vllm/vllm-openai` container serving Nemotron 3 Nano (fast tier), and a
   CPU-only endpoint hosting the API and UI. Satisfies the "deployed/run using
   Nebius AI Cloud compute" clause.
-- **NVIDIA Nemotron 3** — Nano (fast) and Super/Ultra (deep). `reasoning_budget`
-  is used as a per-tier cost/latency dial.
+- **NVIDIA Nemotron 3** — Nano (fast) and Super/Ultra (deep). The per-tier
+  cost/latency dial is vLLM's top-level `thinking_token_budget` sampling
+  parameter; Token Factory does not document it, so it binds on the sovereign
+  tier only. The fast tier runs the `nano_v3` reasoning parser and no tool-call
+  parser (ADR-0006).
 - **NVIDIA OpenShell** *(planned)* — enforcement layer. WARRANT computes the
   grant; OpenShell's declarative network and inference policy enforces it.
 

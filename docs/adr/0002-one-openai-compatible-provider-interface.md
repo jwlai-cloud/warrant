@@ -41,5 +41,8 @@ makes the whole system runnable with no GPU, no credits and no network.
   work *inside* the product rather than in a README appendix.
 - Benchmarking self-hosted against managed is a config swap plus a timer, so the
   cost/latency comparison comes almost free.
-- `reasoning_budget` is passed via `chat_template_kwargs`. **TODO(verify)** this
-  shape against the Token Factory API reference before the 20 Sep gate.
+- `reasoning_budget` in `warrant.yaml` is a logical dial, not a wire field. It
+  is sent as vLLM's top-level `thinking_token_budget` sampling parameter. The
+  scaffold's original `chat_template_kwargs` shape was wrong and has been
+  corrected; see ADR-0006. Token Factory does not document the parameter, so the
+  dial is effectively vLLM-only - one code path, one field, differing reach.
