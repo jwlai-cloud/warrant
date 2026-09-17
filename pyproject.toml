@@ -15,7 +15,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7"]
+# LangGraph is for the agents only. warrant.engine and warrant.providers import
+# no agent framework - that layering rule is what keeps the authorization plane
+# callable from any framework (ADR-0005, kept by ADR-0008), and
+# tests/test_no_bypass.py fails if an agent module reaches past the seam.
+agents = ["langgraph>=1.2"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "langgraph>=1.2"]
 
 [project.scripts]
 warrant = "warrant.cli:app"

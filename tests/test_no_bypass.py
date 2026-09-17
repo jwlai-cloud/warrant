@@ -31,19 +31,54 @@ AGENTS_DIR = pathlib.Path(__file__).resolve().parents[1] / "src" / "warrant" / "
 # structural
 # --------------------------------------------------------------------------
 
-def test_only_the_seam_speaks_http():
-    """Any agent module making its own HTTP call is a path around the seam."""
-    offenders = []
+# The seam is two modules: base.py holds the primitives, serving.py is the
+# callee half that applies them. Everything else is agent business logic and
+# must reach peers only through governed_call.
+SEAM = {"base.py", "serving.py", "__init__.py"}
+
+
+NET_LIBS = {"httpx", "requests", "aiohttp", "urllib", "http"}
+
+
+def _imported_modules(src: str) -> set[str]:
+    """Top-level package of every import. Parsed, not substring-matched - an
+    earlier version of this test flagged `grant_requests` as the `requests`
+    library."""
+    import ast
+    mods: set[str] = set()
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Import):
+            mods |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            mods.add(node.module.split(".")[0])
+    return mods
+
+
+def test_business_agents_do_not_speak_http():
+    """An agent module opening its own connection is a path around the seam."""
+    offenders = {}
     for path in AGENTS_DIR.rglob("*.py"):
-        if path.name in {"base.py", "__init__.py"}:
+        if path.name in SEAM:
             continue
-        src = path.read_text(encoding="utf-8")
-        if "httpx" in src or "requests" in src or "aiohttp" in src:
-            offenders.append(path.name)
+        hits = _imported_modules(path.read_text(encoding="utf-8")) & NET_LIBS
+        if hits:
+            offenders[path.name] = sorted(hits)
     assert not offenders, (
         f"{offenders} open their own HTTP connections; cross-boundary calls "
         f"must go through governed_call in base.py"
     )
+
+
+def test_serving_agents_only_ever_talk_to_the_plane():
+    """serving.py legitimately speaks HTTP - to verify a warrant. It must not
+    also be able to call a peer, or a callee could chain onward ungoverned."""
+    src = (AGENTS_DIR / "serving.py").read_text(encoding="utf-8")
+    assert "plane_url" in src
+    for forbidden in ("callee_url", "governed_call", "AGENT_URLS", "peer_url"):
+        assert forbidden not in src, (
+            f"serving.py references {forbidden}; a serving agent must only "
+            f"reach the authorization plane, never another agent"
+        )
 
 
 # --------------------------------------------------------------------------
