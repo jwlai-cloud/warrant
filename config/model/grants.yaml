@@ -11,6 +11,16 @@ grants:
     granted_by: coo@example.com
     note: Cross-org grant - Finance may verify spend against supplier terms.
 
+  - capability: expense-management
+    data_entity: Inventory.StockLevel
+    granted_by: coo@example.com
+    note: >-
+      Cross-org grant. Finance may check claims against stock movements.
+      This grant is what makes the A/B demo work: within the Inventory
+      Reconciler's declared set, Employee.Compensation is now the ONLY
+      entity Expense Management cannot reach. So the outcome turns on a
+      single classification question - does this purpose need salary data?
+
   - capability: inventory-control
     data_entity: Inventory.StockLevel
     granted_by: coo@example.com
