@@ -110,6 +110,19 @@ removed from scope *and* from the docs. Nebius Object Storage for the audit log 
 a checkbox nobody scores. Transitive delegation (A→B→C) — named in the README as
 a known limitation rather than half-built.
 
+- **Wrote `docs/PRD.md` — the document that was missing.** Eight ADRs recorded
+  decisions with no stated goal to judge them against, which is exactly how the
+  framing drifted from "policy microservice" to "governed multi-agent system"
+  partway through. The PRD states the problem, the two narrow claims, the
+  personas (including the data steward, the one most agent-governance products
+  forget), P0/P1/P2 requirements with current state, and a **§5 "explicitly not
+  building"** list that is the defence against week-5 scope creep.
+- **Published two artifacts:**
+  - Console (v2) — six views, approvals inbox that writes a grant into the model,
+    re-run closes at 47/47: https://claude.ai/artifact/GXkFQpNVjXmbLRGKYY5S5M
+  - Blueprint — architecture, sequence, agent topology, the approval loop, and
+    the service inventory: https://claude.ai/artifact/1FfN4oo7yyhpVweP7xsmhf
+
 ### Decided this session, after checking rather than recalling
 - **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
   ships no evaluator; its eval lives in LangSmith, which is hosted and an
@@ -249,6 +262,19 @@ be enforced harder, not softer: it is no longer a risk worth days.
    thinking budget binds on vLLM only, so a deep-tier latency is not evidence
    the budget applied.
 
+- **Wrote `docs/PRD.md` — the document that was missing.** Eight ADRs recorded
+  decisions with no stated goal to judge them against, which is exactly how the
+  framing drifted from "policy microservice" to "governed multi-agent system"
+  partway through. The PRD states the problem, the two narrow claims, the
+  personas (including the data steward, the one most agent-governance products
+  forget), P0/P1/P2 requirements with current state, and a **§5 "explicitly not
+  building"** list that is the defence against week-5 scope creep.
+- **Published two artifacts:**
+  - Console (v2) — six views, approvals inbox that writes a grant into the model,
+    re-run closes at 47/47: https://claude.ai/artifact/GXkFQpNVjXmbLRGKYY5S5M
+  - Blueprint — architecture, sequence, agent topology, the approval loop, and
+    the service inventory: https://claude.ai/artifact/1FfN4oo7yyhpVweP7xsmhf
+
 ### Decided this session, after checking rather than recalling
 - **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
   ships no evaluator; its eval lives in LangSmith, which is hosted and an
@@ -340,6 +366,19 @@ be enforced harder, not softer: it is no longer a risk worth days.
 6. Move the audit log from local JSONL to Nebius Object Storage.
 7. Benchmark self-hosted vs Token Factory: throughput, TTFT, p95, cost per 1M
    tokens, break-even volume. Feeds the README and the video.
+
+- **Wrote `docs/PRD.md` — the document that was missing.** Eight ADRs recorded
+  decisions with no stated goal to judge them against, which is exactly how the
+  framing drifted from "policy microservice" to "governed multi-agent system"
+  partway through. The PRD states the problem, the two narrow claims, the
+  personas (including the data steward, the one most agent-governance products
+  forget), P0/P1/P2 requirements with current state, and a **§5 "explicitly not
+  building"** list that is the defence against week-5 scope creep.
+- **Published two artifacts:**
+  - Console (v2) — six views, approvals inbox that writes a grant into the model,
+    re-run closes at 47/47: https://claude.ai/artifact/GXkFQpNVjXmbLRGKYY5S5M
+  - Blueprint — architecture, sequence, agent topology, the approval loop, and
+    the service inventory: https://claude.ai/artifact/1FfN4oo7yyhpVweP7xsmhf
 
 ### Decided this session, after checking rather than recalling
 - **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
