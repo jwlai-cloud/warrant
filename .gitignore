@@ -9,3 +9,4 @@ dist/
 build/
 audit/*.jsonl
 .DS_Store
+.pytest_cache/
