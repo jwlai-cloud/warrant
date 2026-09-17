@@ -13,6 +13,7 @@ def record(path: str | Path, d: WarrantDecision) -> dict:
     entry = {
         "id": d.id,
         "issued_at": d.issued_at,
+        "expires_at": d.expires_at,
         "granted": d.granted,
         "caller": d.request.caller_agent,
         "callee": d.request.callee_agent,

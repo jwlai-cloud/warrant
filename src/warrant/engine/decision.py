@@ -14,9 +14,15 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from ..model import ArchitectureModel
+
+# A warrant authorises one call, now. Without an expiry it is a bearer token
+# valid forever, and a captured one replays indefinitely. Short, because the
+# callee verifies against the plane anyway and nothing legitimately sits on a
+# warrant for a minute.
+WARRANT_TTL_S = 60
 
 
 @dataclass(slots=True)
@@ -48,6 +54,16 @@ class WarrantDecision:
     issued_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+    expires_at: str = field(
+        default_factory=lambda: (
+            datetime.now(timezone.utc) + timedelta(seconds=WARRANT_TTL_S)
+        ).isoformat()
+    )
+
+    def is_expired(self, now: datetime | None = None) -> bool:
+        return (now or datetime.now(timezone.utc)) > datetime.fromisoformat(
+            self.expires_at
+        )
 
     def headline(self) -> str:
         verb = "Granted" if self.granted else "Denied"
