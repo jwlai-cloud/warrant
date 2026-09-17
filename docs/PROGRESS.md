@@ -53,7 +53,23 @@ unsolved.
   request arriving; deployment topology includes the three agent services.
 - **Rewrote README.md** — new lead, the replan example, the A/B table, the
   timestamped prior-art table.
-- **12 tests passing** (was 7 at end of session 1).
+- **Put data entities with the org that stewards them (`329d008`).**
+  `inventory-reconciler` declared `Employee.Compensation` - an inventory agent
+  reading salaries, which does not survive "why does Operations hold payroll?".
+  Compensation moved to `roster-planner`; Finance granted `Employee.Roster` but
+  not `Employee.Compensation`. The A/B moved there and got better: *who
+  travelled* is grantable, *what they earn* is not. Also caught a real bug - the
+  mock matched every token of an entity id, so "employee" in a purpose selected
+  both `Employee.Roster` and `Employee.Compensation`; a shared family prefix
+  silently widened the set and denied a call that should have been granted.
+- **Built the governed-call seam and the no-bypass gate (`584c566`).**
+  `governed_call` returns structured reasons on refusal rather than raising;
+  `verify_warrant` is the callee-side check that makes the seam real rather than
+  honour-system. Warrants now carry a 60s `expires_at`, and `GET
+  /v1/warrant/{id}` is what a callee verifies against.
+- **Published the UI prototype** - grant matrix as the hero, cells lighting as
+  each governed call is checked: https://claude.ai/artifact/GXkFQpNVjXmbLRGKYY5S5M
+- **23 tests passing** (was 7 at end of session 1).
 
 ### Debt created this session — read before submitting
 **The README's headline example shows behaviour that does not exist yet.** The
@@ -63,18 +79,14 @@ to submission unbuilt. Either the replan loop ships, or that block comes out.
 Re-check it in the pre-submission sweep.
 
 ### Next (priority order — agents first now)
-1. **Three LangGraph agents, one per org unit, each its own small FastAPI
+1. ~~`governed_call` + no-bypass gate~~ — **done**, `584c566`.
+2. **Three LangGraph agents, one per org unit, each its own small FastAPI
    service.** `expense-auditor` (Finance), `inventory-reconciler` (Operations),
    `roster-planner` (People & Culture). Separate processes, not subgraphs: the
    org boundary must be a real network hop for the no-bypass gate to mean
    anything, and one URL per agent is what an A2A Agent Card will later attach to.
    Each owns a **fixture dataset** matching its declared entities — a refusal has
    to withhold real rows, or the demo is abstract.
-2. **`governed_call`** — the single seam every cross-boundary call passes
-   through. On refusal it returns structured reasons to the planner rather than
-   raising. **Hard gate: a test asserting no agent can reach another org unit's
-   data except through this node.** Ungoverned reach invalidates every claim the
-   project makes, so it is asserted structurally, not trusted to review.
 3. **`replan`** — degrade, escalate, record. **If only one branch ships, ship
    escalate.** A grant request naming the capability, the entity and the actual
    human owner is a product; "access denied, contact your administrator" is a
@@ -97,6 +109,28 @@ Re-check it in the pre-submission sweep.
 removed from scope *and* from the docs. Nebius Object Storage for the audit log —
 a checkbox nobody scores. Transitive delegation (A→B→C) — named in the README as
 a known limitation rather than half-built.
+
+### Decided this session, after checking rather than recalling
+- **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
+  ships no evaluator; its eval lives in LangSmith, which is hosted and an
+  account dependency. DeepEval runs fully local with no Confident AI account, so
+  a judge can clone and run it; it supports deterministic `BaseMetric` subclasses
+  with no LLM at all, which is what the exact-set classifier eval needs; and it
+  takes a custom model, so the judge model points at **our own Nebius endpoint** -
+  Nemotron evaluating Nemotron, entirely on Nebius. Opik is good and cheap
+  (Apache 2.0 self-host, ~$19/mo cloud) but its value is tracing, and the audit
+  log already carries tier, provider, latency and tokens per decision. It also
+  means a service running during judging, against a "nothing runs overnight"
+  cost strategy. Wire DeepEval *after* the agents exist - eval needs something to
+  evaluate.
+- **TOGAF ADM: no.** The content metamodel stays (ADR-0003); the Architecture
+  Development Method does not. Nothing in the four judging criteria scores
+  process, and `KICKOFF.md` already says TOGAF is rigour, never the pitch. One
+  cheap adjacent win taken instead: ArchiMate conventions for the archify
+  diagrams, which costs nothing and reads as fluent to an EA-literate judge.
+- **A2A: deferred, not rejected.** §7.5 requires implementers to supply
+  authorization scoping and defines no mechanism, so the fit is exact. It is a
+  transport swap at `governed_call`. Revisit once replanning works.
 
 ### Open questions / blocked on
 - **Nebius profile still not created.** `~/.nebius/bin/nebius profile create`
@@ -215,6 +249,28 @@ be enforced harder, not softer: it is no longer a risk worth days.
    thinking budget binds on vLLM only, so a deep-tier latency is not evidence
    the budget applied.
 
+### Decided this session, after checking rather than recalling
+- **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
+  ships no evaluator; its eval lives in LangSmith, which is hosted and an
+  account dependency. DeepEval runs fully local with no Confident AI account, so
+  a judge can clone and run it; it supports deterministic `BaseMetric` subclasses
+  with no LLM at all, which is what the exact-set classifier eval needs; and it
+  takes a custom model, so the judge model points at **our own Nebius endpoint** -
+  Nemotron evaluating Nemotron, entirely on Nebius. Opik is good and cheap
+  (Apache 2.0 self-host, ~$19/mo cloud) but its value is tracing, and the audit
+  log already carries tier, provider, latency and tokens per decision. It also
+  means a service running during judging, against a "nothing runs overnight"
+  cost strategy. Wire DeepEval *after* the agents exist - eval needs something to
+  evaluate.
+- **TOGAF ADM: no.** The content metamodel stays (ADR-0003); the Architecture
+  Development Method does not. Nothing in the four judging criteria scores
+  process, and `KICKOFF.md` already says TOGAF is rigour, never the pitch. One
+  cheap adjacent win taken instead: ArchiMate conventions for the archify
+  diagrams, which costs nothing and reads as fluent to an EA-literate judge.
+- **A2A: deferred, not rejected.** §7.5 requires implementers to supply
+  authorization scoping and defines no mechanism, so the fit is exact. It is a
+  transport swap at `governed_call`. Revisit once replanning works.
+
 ### Open questions / blocked on
 - **Does a Nebius account with credits exist yet?** Everything in item 1 assumes
   yes. Unverified.
@@ -284,6 +340,28 @@ be enforced harder, not softer: it is no longer a risk worth days.
 6. Move the audit log from local JSONL to Nebius Object Storage.
 7. Benchmark self-hosted vs Token Factory: throughput, TTFT, p95, cost per 1M
    tokens, break-even volume. Feeds the README and the video.
+
+### Decided this session, after checking rather than recalling
+- **Eval: DeepEval, in `[dev]` extras. Not Opik, not LangSmith.** LangGraph
+  ships no evaluator; its eval lives in LangSmith, which is hosted and an
+  account dependency. DeepEval runs fully local with no Confident AI account, so
+  a judge can clone and run it; it supports deterministic `BaseMetric` subclasses
+  with no LLM at all, which is what the exact-set classifier eval needs; and it
+  takes a custom model, so the judge model points at **our own Nebius endpoint** -
+  Nemotron evaluating Nemotron, entirely on Nebius. Opik is good and cheap
+  (Apache 2.0 self-host, ~$19/mo cloud) but its value is tracing, and the audit
+  log already carries tier, provider, latency and tokens per decision. It also
+  means a service running during judging, against a "nothing runs overnight"
+  cost strategy. Wire DeepEval *after* the agents exist - eval needs something to
+  evaluate.
+- **TOGAF ADM: no.** The content metamodel stays (ADR-0003); the Architecture
+  Development Method does not. Nothing in the four judging criteria scores
+  process, and `KICKOFF.md` already says TOGAF is rigour, never the pitch. One
+  cheap adjacent win taken instead: ArchiMate conventions for the archify
+  diagrams, which costs nothing and reads as fluent to an EA-literate judge.
+- **A2A: deferred, not rejected.** §7.5 requires implementers to supply
+  authorization scoping and defines no mechanism, so the fit is exact. It is a
+  transport swap at `governed_call`. Revisit once replanning works.
 
 ### Open questions / blocked on
 - **Token Factory base URL** — `api.tokenfactory.nebius.com/v1` is a guess. The
