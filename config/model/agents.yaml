@@ -12,13 +12,16 @@ agents:
     name: Inventory Reconciler
     org: operations
     serves: inventory-control
-    reads: [Inventory.StockLevel, Supplier.Contract, Employee.Compensation]
+    reads: [Inventory.StockLevel, Supplier.Contract]
 
   - id: roster-planner
     name: Roster Planner
     org: people
     serves: workforce-planning
-    reads: [Employee.Roster]
+    # People & Culture stewards both. Finance may learn WHO travelled
+    # (Employee.Roster) but not WHAT THEY EARN (Employee.Compensation).
+    # That asymmetry is the demo.
+    reads: [Employee.Roster, Employee.Compensation]
 
   - id: vendor-scout
     name: Vendor Scout (external SaaS)

@@ -29,6 +29,14 @@ grants:
     data_entity: Supplier.Contract
     granted_by: coo@example.com
 
+  - capability: expense-management
+    data_entity: Employee.Roster
+    granted_by: chro@example.com
+    note: >-
+      Cross-org grant. Finance may see who was rostered in order to match
+      travel claims to trips. Deliberately NOT extended to
+      Employee.Compensation - that asymmetry is what the demo turns on.
+
   - capability: workforce-planning
     data_entity: Employee.Roster
     granted_by: chro@example.com

@@ -11,9 +11,12 @@ from warrant.config import load_config
 from warrant.engine import WarrantRequest
 from warrant.service import WarrantService
 
-PAIR = ("expense-auditor", "inventory-reconciler")
-GRANTED_PURPOSE = "verify claim 4471 against supplier contract terms and stock movements"
-DENIED_PURPOSE = "reconcile Q3 claims against employee compensation bands"
+# The A/B lives on roster-planner, where People & Culture stewards both the
+# roster and the salary bands. Finance may see who travelled, not what they
+# earn - so the same agent pair flips on the purpose alone.
+PAIR = ("expense-auditor", "roster-planner")
+GRANTED_PURPOSE = "which employees travelled in Q3, from the employee roster"
+DENIED_PURPOSE = "verify allowance claims against employee compensation bands"
 
 
 @pytest.fixture
@@ -24,7 +27,7 @@ def svc():
 async def test_narrow_purpose_is_granted(svc):
     d = await svc.evaluate(WarrantRequest(*PAIR, purpose=GRANTED_PURPOSE))
     assert d.granted is True
-    assert "Employee.Compensation" not in d.entities_touched
+    assert d.entities_touched == ["Employee.Roster"]
 
 
 async def test_purpose_reaching_salary_data_is_denied(svc):

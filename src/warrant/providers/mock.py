@@ -1,7 +1,8 @@
 """Deterministic offline provider. Lets the decision engine, the API and the
 whole test suite run with no GPU, no credits and no network.
 
-It is a STUB, not a small model. It narrows by literal token overlap, so the
+It is a STUB, not a small model. It narrows by literal token overlap on each
+entity's distinguishing segment, so the
 offline demo shows the *mechanism* (purpose changes which entities are
 considered, which changes the outcome) without pretending to show inference.
 Anything phrased indirectly - "headcount cost" for Employee.Compensation -
@@ -20,9 +21,20 @@ from .base import ChatProvider, Completion
 
 
 def _tokens(text: str) -> set[str]:
-    """`Inventory.StockLevel` -> {inventory, stock, level}."""
+    """`reconcile stock levels` -> {reconcile, stock, levels}."""
     spaced = re.sub(r"(?<!^)(?=[A-Z])", " ", text.replace(".", " "))
     return {t.lower() for t in re.findall(r"[A-Za-z]+", spaced)}
+
+
+def _distinguishing(entity_id: str) -> set[str]:
+    """Tokens that tell an entity apart from its siblings.
+
+    Only the segment after the final dot. `Employee.Roster` and
+    `Employee.Compensation` share the family prefix `Employee`, so matching on
+    the whole id makes any mention of "employee" select both - which silently
+    widens the set and denies a call that should have been granted.
+    """
+    return _tokens(entity_id.rsplit(".", 1)[-1])
 
 
 class MockProvider(ChatProvider):
@@ -41,7 +53,7 @@ class MockProvider(ChatProvider):
                 if ln.startswith("Purpose of the call:"):
                     purpose = ln.split(":", 1)[1]
             words = _tokens(purpose)
-            narrowed = [e for e in declared if _tokens(e) & words]
+            narrowed = [e for e in declared if _distinguishing(e) & words]
             # Fail closed, exactly as classify.py does: a purpose that matches
             # nothing is treated as touching everything the callee can read.
             text = json.dumps({"data_entities": narrowed or declared})
