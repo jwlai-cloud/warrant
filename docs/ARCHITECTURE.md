@@ -2,16 +2,55 @@
 
 ## One-paragraph summary
 
-WARRANT sits between agents. When one agent wants to call another, it asks
-WARRANT for permission. WARRANT looks the call up in a model of the
-organisation — which business capability the calling agent serves, who owns it,
-which data entities the called agent touches, who stewards those — and issues
-either a signed warrant or a refusal **with the architectural reason**, then
-writes an audit record. The decision itself is deterministic graph traversal.
-NVIDIA Nemotron models are used to work out which data entities a given call
-actually touches, and to write the explanation a human reads.
+WARRANT is a **governed multi-agent system**. Three agents, one per
+organisation unit, do work that genuinely requires data owned by another unit.
+No agent can reach across an organisational boundary without a warrant. When
+one asks for one, the authorization plane looks the call up in a model of the
+organisation — which business capability the caller serves, who owns it, which
+data entities the callee touches, who stewards those — and issues either a
+warrant or a refusal **with the architectural reason**, then writes an audit
+record. The decision itself is deterministic graph traversal.
+
+The part that makes this a multi-agent system rather than a proxy demo: **a
+refusal is an input to the agent's planning loop, not an error.** A refused
+agent replans — it finishes what it can reach and reports the reduced scope, or
+it drafts a grant request naming the capability, the entity and the human who
+can approve it. NVIDIA Nemotron works out which data entities a call touches,
+writes the explanation a human reads, and drives that replanning. It never
+makes the authorization decision (ADR-0004).
 
 ## Components
+
+**`warrant.agents`** *(the product; ADR-0008)* — three LangGraph agents, one per
+organisation unit, each running as its own small FastAPI service on its own
+port. Each owns a fixture dataset matching the data entities the architecture
+model attributes to it, so a refusal withholds real rows rather than an
+abstraction.
+
+| Agent | Org unit | Owns |
+|---|---|---|
+| `expense-auditor` | Finance | `Expense.Claim` |
+| `inventory-reconciler` | Operations | `Inventory.StockLevel`, `Supplier.Contract` |
+| `roster-planner` | People & Culture | `Employee.Roster`, `Employee.Compensation` |
+
+Separate processes rather than subgraphs in one app, because the organisational
+boundary has to be a real network hop for the no-bypass guarantee below to mean
+anything, and because one URL per agent is what an A2A Agent Card will later
+attach to.
+
+**`warrant.agents.governed_call`** — the single seam every cross-boundary call
+passes through. Requests a warrant, and on refusal hands the structured reasons
+back to the planner rather than raising. **There is no ungoverned path**, and a
+test asserts it structurally: no agent may reach another org unit's data except
+through this node. It is also the seam the transport swaps at — direct HTTP
+today, A2A later, with nothing above it changing.
+
+**`warrant.agents.replan`** — the branch that makes a refusal productive:
+*degrade* (complete the task with the entities the caller does hold grants for,
+and state the reduced scope), *escalate* (draft a grant request naming the
+capability, the data entity and the owning steward), *record* (log what was
+refused and why, so the next run does not retry the same path). Nemotron chooses
+the branch and writes the request; it cannot change the authorization outcome.
 
 **`warrant.model`** — the architecture model: a deliberately small subset of the
 TOGAF content metamodel (Organization Unit, Business Capability, Data Entity,
@@ -49,16 +88,38 @@ refused.
 
 ## Data flow
 
-1. Calling agent → WARRANT: `POST /v1/warrant {caller, callee, purpose, payload}`
-2. WARRANT → architecture model: look up caller's capability and callee's declared `reads`
-3. WARRANT → fast tier (self-hosted Nemotron Nano on vLLM): narrow declared entities to those this call requires
-4. Fast tier → WARRANT: subset of data entity ids (JSON schema constrained)
-5. WARRANT → decision engine: deterministic grant check, capability × each entity
-6. Decision engine → WARRANT: granted/denied plus structured reasons
-7. WARRANT → deep tier (Nemotron Super/Ultra on Token Factory): write the justification
-8. Deep tier → WARRANT: one paragraph of prose
-9. WARRANT → audit log: append the record
-10. WARRANT → calling agent: `200` with warrant, or `403` with the refusal and its reason
+The flow starts with an agent being given a task, not with an HTTP request
+arriving.
+
+1. **Expense Auditor** (Finance) is asked to reconcile Q3 expense claims. It
+   plans, and finds it needs data held by Operations.
+2. The plan reaches `governed_call` — the only way out of the agent's own org
+   unit.
+3. `governed_call` → authorization plane: `POST /v1/warrant {caller, callee, purpose, payload}`
+4. Plane → architecture model: look up the caller's capability and the callee's declared `reads`
+5. Plane → **fast tier** (Nemotron Nano on vLLM): narrow the declared entities to those this purpose requires
+6. Fast tier → plane: subset of data entity ids, JSON-schema constrained, intersected with the declared set so it can only narrow
+7. Plane → decision engine: deterministic grant check, capability × each entity. **No model call.**
+8. Decision engine → plane: granted/denied plus structured reasons
+9. Plane → **deep tier** (Nemotron Super on Token Factory): write the justification from reasons already computed
+10. Plane → audit log: append the record
+11. Plane → `governed_call`: `200` with the warrant, or `403` with the refusal and its reasons
+
+Granted, the call proceeds to the Inventory Reconciler and returns rows. Refused,
+the flow continues instead of stopping:
+
+12. `governed_call` → `replan`: hands back the structured reasons, not an exception
+13. **Degrade** — reissue against the entities the caller does hold grants for,
+    complete the reconciliation on `Supplier.Contract` alone, and report the
+    reduced scope; or
+14. **Escalate** — when the task cannot be completed at all, draft a grant
+    request naming `inventory-control → Employee.Compensation` and the People &
+    Culture steward who can approve it
+15. **Record** — write the refused path to the run log so the next run does not
+    retry it blindly
+
+Steps 12–15 are why this is an agentic system. Steps 4–8 are why the
+authorization decision is still auditable.
 
 ## External dependencies
 
@@ -74,14 +135,16 @@ refused.
   parameter; Token Factory does not document it, so it binds on the sovereign
   tier only. The fast tier runs the `nano_v3` reasoning parser and no tool-call
   parser (ADR-0006).
-- **NVIDIA OpenShell** *(planned)* — enforcement layer. WARRANT computes the
-  grant; OpenShell's declarative network and inference policy enforces it.
+- **LangGraph** — the three org agents and the replanning loop only. Never
+  imported by `warrant.engine` or `warrant.providers` (ADR-0005's layering rule,
+  which ADR-0008 keeps).
 
 ## Deployment topology
 
 | Component | Runs on | Always on? | Cost note |
 |---|---|---|---|
-| API + UI | Nebius Serverless Endpoint, CPU-only | Yes, through judging | Small continuous bill; endpoints do NOT scale to zero |
+| Three org agents | Nebius Serverless Endpoint, CPU-only | Yes, through judging | One service each, or one container running all three |
+| Authorization plane + UI | Nebius Serverless Endpoint, CPU-only | Yes, through judging | Small continuous bill; endpoints do NOT scale to zero |
 | Fast tier (vLLM + Nemotron Nano) | Nebius Serverless Endpoint, 1× L40S | **No — started manually** | ~$0.74/hr preemptible; stopped = no compute charge |
 | Deep tier | Nebius Token Factory | Managed | Per token, inside the $50 of hackathon credits |
 | Audit log | JSONL on the API container | — | Move to Object Storage before submission |
@@ -91,8 +154,15 @@ request still succeeds, and the audit record says which tier served it.
 
 ## Known limitations / non-goals
 
-- **Not an agent builder.** That space is saturated and WARRANT is framework-agnostic by design.
+- **Not an agent builder.** WARRANT does not help you build agents; it governs
+  the ones you have. The three agents here are the demonstration, not the
+  product's output. The plane stays callable from any framework.
+- **Single hop only.** WARRANT authorizes A→B. Whether A's authority flows
+  transitively through B to C is unsolved here, and unsolved generally.
+- **Not A2A, yet.** Inter-agent calls are direct HTTP behind one seam.
+  A2A v1.0 §7.5 requires implementers to supply authorization scoping and
+  defines no mechanism, so the protocol is a natural fit; it is a transport
+  swap at `governed_call`, deliberately deferred until replanning works.
 - **Not an EA repository.** SAP LeanIX AI Agent Hub (GA Nov 2025) models agents against capability maps; WARRANT deliberately does not compete there. It consumes a model and makes a runtime decision.
-- **Not a sandbox or a gateway.** NVIDIA OpenShell is the enforcement layer; WARRANT is the decision layer above it.
 - **The model is hand-authored.** Discovery/ingestion from a real EA tool is out of scope for the hackathon window.
 - **Grants are coarse** — capability × data entity. No row-level, purpose-limited or time-boxed grants yet.

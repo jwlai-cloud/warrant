@@ -1,5 +1,135 @@
 # Progress log
 
+## 2026-09-17 — session 3 (reframe: governed multi-agent system)
+
+### What changed, and why it matters more than anything else this session
+The project was a policy microservice with imaginary agents. `config/model/agents.yaml`
+described four agents; zero existed. Every claim about agent-to-agent
+authorization was asserted, never demonstrated — which fails **Potential Impact**
+("based on what's demonstrated") and is precisely what **Design** screens out
+("a complete, coherent product experience, not just a technical proof of concept").
+
+**WARRANT is now a governed multi-agent system.** Agents are the product; the
+authorization plane is a component they call. ADR-0008 records it and supersedes
+ADR-0005's *framing* — ADR-0005's layering rule (no agent framework in
+`warrant.engine` / `warrant.providers`) stands unchanged.
+
+The novel claim is no longer "we decide from an EA model". It is:
+**agents that treat an authorization boundary as a planning constraint rather
+than an error.** Refused, an agent degrades (finishes what it can reach, states
+the reduced scope), escalates (drafts a grant request naming the capability, the
+entity and the human steward who can approve it), and records the refused path.
+Competitive research found nobody doing this — and MCP's own Authorization
+Interest Group lists *"structured denials, remediation hints"* as active and
+unsolved.
+
+### Done this session
+- **Made classification load-bearing (ADR-0007, commit `76755c9`).** The scaffold
+  shipped ADR-0004 in a way that left Nemotron inert: the demo callee declared an
+  entity the caller could never reach, so every purpose denied and narrowing
+  changed nothing; the mock echoed the declared set verbatim, so `classify.py`'s
+  *failure* path and the mock's *success* path returned identical values. A dead
+  fast tier was indistinguishable from a working one. Added the grant
+  `expense-management -> Inventory.StockLevel`, leaving `Employee.Compensation`
+  as the only unreachable entity, so the outcome turns on one real language
+  question. `tests/test_ab_demo.py` pins that the purpose flips the outcome.
+- **Resolved the four `TODO(verify)` items (commit `ae58050`)** — see session 2.
+  Headline: `reasoning_budget` inside `chat_template_kwargs` was fiction; the real
+  knob is vLLM's top-level `thinking_token_budget`.
+- **Competitive research, adversarial.** Findings that changed the docs:
+  - "OpenShell is the enforcement layer; WARRANT is the decision layer above it"
+    was **deleted everywhere**. ServiceNow AI Control Tower claimed that exact
+    slot on 2026-05-05.
+  - LeanIX row now timestamped. SAP's own reference architecture dates an
+    agent↔tool PEP to **H2/2026**; the "no runtime decision" claim has a shelf life.
+  - **Open Agent Passport (arXiv 2603.20953, 2026-03-21)** added to the prior-art
+    table. It publishes ADR-0004's deterministic-authz argument. Our remaining
+    gap — ownership and stewardship as *decision inputs*, and a denial that names
+    the steward — holds, but the framing is no longer ours alone.
+  - A2A v1.0 §7.5 requires implementers to supply authorization scoping and
+    defines no mechanism. Exact fit; deferred deliberately (see open questions).
+- **Rewrote ARCHITECTURE.md** — `warrant.agents`, `governed_call`, `replan`
+  components; data flow now starts with an agent being given a task, not an HTTP
+  request arriving; deployment topology includes the three agent services.
+- **Rewrote README.md** — new lead, the replan example, the A/B table, the
+  timestamped prior-art table.
+- **12 tests passing** (was 7 at end of session 1).
+
+### Debt created this session — read before submitting
+**The README's headline example shows behaviour that does not exist yet.** The
+"41 of 47 claims reconciled / grant request drafted" block is the target, not
+shipped output. That is normal for a README mid-build and *lethal* if it survives
+to submission unbuilt. Either the replan loop ships, or that block comes out.
+Re-check it in the pre-submission sweep.
+
+### Next (priority order — agents first now)
+1. **Three LangGraph agents, one per org unit, each its own small FastAPI
+   service.** `expense-auditor` (Finance), `inventory-reconciler` (Operations),
+   `roster-planner` (People & Culture). Separate processes, not subgraphs: the
+   org boundary must be a real network hop for the no-bypass gate to mean
+   anything, and one URL per agent is what an A2A Agent Card will later attach to.
+   Each owns a **fixture dataset** matching its declared entities — a refusal has
+   to withhold real rows, or the demo is abstract.
+2. **`governed_call`** — the single seam every cross-boundary call passes
+   through. On refusal it returns structured reasons to the planner rather than
+   raising. **Hard gate: a test asserting no agent can reach another org unit's
+   data except through this node.** Ungoverned reach invalidates every claim the
+   project makes, so it is asserted structurally, not trusted to review.
+3. **`replan`** — degrade, escalate, record. **If only one branch ships, ship
+   escalate.** A grant request naming the capability, the entity and the actual
+   human owner is a product; "access denied, contact your administrator" is a
+   gimmick. This is where the project wins or doesn't.
+4. **Product surface** (Design, 25%, still at zero). Centrepiece is the grant
+   matrix with its holes visible, plus live agent state and the audit log with a
+   "served by tier X" indicator. One command locally (`warrant demo`), zero
+   commands hosted — a judge must never orchestrate three processes.
+5. **Fast tier** — demoted from item 1. Blocked on Nebius credentials regardless,
+   and Token Factory already satisfies the compliance clause. One timeboxed
+   session: deploy, `scripts/smoke_fast_tier.sh`, done or folded to
+   `kind: token_factory`.
+6. **Richer architecture model** — currently 3 capabilities × 5 entities = 15
+   cells, 6 grants. A human reads that and correctly concludes they do not need a
+   product for it. Target ~6 capabilities × 10 entities with 3–4 deliberate gaps,
+   so the matrix stops fitting in a judge's head. Pure YAML, feeds item 4 directly.
+7. Demo video (<3 min, hard rule). Benchmark table in the README.
+
+**Cut, deliberately (decided this session):** NVIDIA OpenShell enforcement —
+removed from scope *and* from the docs. Nebius Object Storage for the audit log —
+a checkbox nobody scores. Transitive delegation (A→B→C) — named in the README as
+a known limitation rather than half-built.
+
+### Open questions / blocked on
+- **Nebius profile still not created.** `~/.nebius/bin/nebius profile create`
+  needs a browser and is the human step blocking item 5. CLI 0.12.277 is
+  installed; `jq` present. Credits unverified.
+- **A2A: when to swap the transport.** The seam is `governed_call`. Doing it
+  makes "agent-to-agent" literal, and an Agent Card extension declaring each
+  agent's data entities would make the architecture model partly
+  *self-describing* rather than hand-authored — which is the direct answer to
+  "you wrote the YAML that produces the refusal". Deferred until replanning
+  works; revisit once item 3 is green.
+- **Where does the architecture model come from in reality?** Agreed direction is
+  one narrow ingestion path — Nemotron extracts capabilities/entities/stewards
+  from plain-language service descriptions, human reviews and commits. Not
+  scheduled yet; it competes with item 4 for the same weekend.
+- **Exact Token Factory model ID for Nemotron 3 Nano 30B.** In the catalogue;
+  string unverified. Super is `nvidia/nemotron-3-super-120b-a12b`.
+- **`--subnet-id`** required if the project has multiple subnets. Unknown until
+  the account exists.
+- **Oktane 2026 is 22–24 Sept.** Okta already ships agent-to-agent connection
+  policies. Re-check the prior-art table once after it, before submission.
+- **Atlan + Immuta** is the closest thing found to WARRANT's claim. Unverified
+  whether steward metadata is a *runtime* decision input or only an approval
+  workflow. Worth a docs-level read before publishing the differentiation.
+
+### Changed since last entry
+- Product framing: authorization gateway → governed multi-agent system (ADR-0008).
+- Work order inverted: agents are now item 1, fast tier item 5.
+- LangGraph is back in, for the agents. Earlier in this session the
+  recommendation was plain `httpx`; that was right for dumb demo agents and wrong
+  for a replanning loop, where a state graph with conditional edges is the job.
+- OpenShell removed from README, ARCHITECTURE and scope.
+
 ## 2026-09-17 — session 2 (fast-tier gate: verification, not deployment)
 
 ### Done this session
