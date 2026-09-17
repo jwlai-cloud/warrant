@@ -1,0 +1,29 @@
+# The authorization model. A grant lets a capability reach a data entity.
+# Absence of a grant is a denial - WARRANT is fail-closed by construction.
+grants:
+  - capability: expense-management
+    data_entity: Expense.Claim
+    granted_by: cfo@example.com
+    note: Own capability, own data.
+
+  - capability: expense-management
+    data_entity: Supplier.Contract
+    granted_by: coo@example.com
+    note: Cross-org grant - Finance may verify spend against supplier terms.
+
+  - capability: inventory-control
+    data_entity: Inventory.StockLevel
+    granted_by: coo@example.com
+
+  - capability: inventory-control
+    data_entity: Supplier.Contract
+    granted_by: coo@example.com
+
+  - capability: workforce-planning
+    data_entity: Employee.Roster
+    granted_by: chro@example.com
+
+# Deliberately absent, and the demo turns on it:
+#   inventory-control -> Employee.Compensation
+# The Inventory Reconciler reads Employee.Compensation, but no org has granted
+# Inventory Control access to it. Every call that touches it is refused.

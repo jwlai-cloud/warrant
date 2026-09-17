@@ -1,0 +1,22 @@
+# TOGAF: Data Entity. Each is owned (stewarded) by exactly one org unit.
+data_entities:
+  - id: Expense.Claim
+    name: Expense Claim
+    owner_org: finance
+    classification: internal
+  - id: Inventory.StockLevel
+    name: Inventory Stock Level
+    owner_org: operations
+    classification: internal
+  - id: Employee.Compensation
+    name: Employee Compensation
+    owner_org: people
+    classification: restricted
+  - id: Employee.Roster
+    name: Employee Roster
+    owner_org: people
+    classification: confidential
+  - id: Supplier.Contract
+    name: Supplier Contract
+    owner_org: operations
+    classification: confidential

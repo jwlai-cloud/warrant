@@ -1,0 +1,28 @@
+# TOGAF: Application Component (agent subtype).
+# `serves` = the capability this agent acts on behalf of.
+# `reads`  = the data entities this agent is known to touch.
+agents:
+  - id: expense-auditor
+    name: Expense Auditor
+    org: finance
+    serves: expense-management
+    reads: [Expense.Claim]
+
+  - id: inventory-reconciler
+    name: Inventory Reconciler
+    org: operations
+    serves: inventory-control
+    reads: [Inventory.StockLevel, Supplier.Contract, Employee.Compensation]
+
+  - id: roster-planner
+    name: Roster Planner
+    org: people
+    serves: workforce-planning
+    reads: [Employee.Roster]
+
+  - id: vendor-scout
+    name: Vendor Scout (external SaaS)
+    org: external
+    serves: inventory-control
+    reads: [Supplier.Contract]
+    external: true

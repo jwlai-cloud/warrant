@@ -1,0 +1,11 @@
+# TOGAF: Business Capability. Each is owned by exactly one org unit.
+capabilities:
+  - id: expense-management
+    name: Expense Management
+    owner_org: finance
+  - id: inventory-control
+    name: Inventory Control
+    owner_org: operations
+  - id: workforce-planning
+    name: Workforce Planning
+    owner_org: people

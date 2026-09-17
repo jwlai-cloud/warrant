@@ -1,0 +1,39 @@
+# WARRANT runtime configuration.
+#
+# The ONLY thing that changes between "self-hosted vLLM" and "Token Factory"
+# is the `kind` + `base_url` + `model` of a tier below. There is one code path.
+#
+# kind: vllm | token_factory | mock
+#   vllm          -> OpenAI-compatible server you run (Nebius GPU Serverless Endpoint)
+#   token_factory -> Nebius Token Factory inference API
+#   mock          -> deterministic stub; no network, used by tests and offline dev
+
+tiers:
+  # Fast path: entity classification + the common allow case.
+  # Small model, tight reasoning budget. Sovereign by default.
+  fast:
+    kind: vllm
+    base_url: ${WARRANT_VLLM_BASE_URL}
+    api_key: ${WARRANT_VLLM_API_KEY}
+    model: nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
+    reasoning_budget: 64
+    timeout_s: 30
+
+  # Deep path: contested decisions and justification narratives that need
+  # real reasoning over the architecture model.
+  deep:
+    kind: token_factory
+    base_url: ${WARRANT_TF_BASE_URL}
+    api_key: ${WARRANT_TF_API_KEY}
+    model: nvidia/nemotron-3-super-120b-a12b
+    reasoning_budget: 512
+    timeout_s: 120
+
+# If a tier is unreachable (e.g. the GPU endpoint is stopped to save money),
+# fall through to this tier instead of failing. Set to null to fail hard.
+fallback:
+  fast: deep
+  deep: null
+
+model_dir: config/model
+audit_path: ${WARRANT_AUDIT_PATH}

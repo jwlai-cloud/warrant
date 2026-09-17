@@ -1,0 +1,11 @@
+# TOGAF content metamodel subset: Organization Unit + Actor/Role.
+org_units:
+  - id: finance
+    name: Finance
+    owner: cfo@example.com
+  - id: operations
+    name: Operations
+    owner: coo@example.com
+  - id: people
+    name: People & Culture
+    owner: chro@example.com

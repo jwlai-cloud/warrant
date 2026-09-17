@@ -1,0 +1,8 @@
+# Offline profile - no GPU, no credits, no network. Used by tests, CI and the
+# first five minutes of any new contributor's day.
+tiers:
+  fast: { kind: mock, model: mock-nano }
+  deep: { kind: mock, model: mock-super }
+fallback: { fast: deep, deep: null }
+model_dir: config/model
+audit_path: audit/warrant.jsonl
