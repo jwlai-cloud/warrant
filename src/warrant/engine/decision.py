@@ -48,9 +48,17 @@ class WarrantDecision:
     entities_touched: list[str] = field(default_factory=list)
     missing_grants: list[tuple[str, str]] = field(default_factory=list)
     justification: str = ""
+    # Which tier CLASSIFIED. This is the one that can affect the outcome, so it
+    # is the one the audit record and the UI mean by "served by".
     tier_used: str = ""
     provider_kind: str = ""
+    # Which tier wrote the prose. Cosmetic - it cannot change the decision - but
+    # recorded separately because it used to overwrite tier_used, which made
+    # every record claim it was served by the deep tier.
+    justify_tier: str = ""
+    justify_provider: str = ""
     latency_ms: float = 0.0
+    justify_ms: float = 0.0
     issued_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

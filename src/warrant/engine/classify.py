@@ -36,12 +36,12 @@ async def classify_entities(
     callee_id: str,
     purpose: str,
     payload: str = "",
-) -> tuple[list[str], str, str]:
-    """Returns (entities, tier_used, provider_kind)."""
+) -> tuple[list[str], str, str, float]:
+    """Returns (entities, tier_used, provider_kind, latency_ms)."""
     callee = model.agents.get(callee_id)
     declared = list(callee.reads) if callee else []
     if not declared:
-        return [], "", ""
+        return [], "", "", 0.0
 
     user = (
         f"Callee agent: {callee.name} ({callee.id})\n"
@@ -55,7 +55,7 @@ async def classify_entities(
         c = await router.complete("fast", _SYSTEM, user, json_schema=_SCHEMA)
         parsed = json.loads(c.text)
         narrowed = [e for e in parsed.get("data_entities", []) if e in declared]
-        return (narrowed or declared), c.tier, c.provider_kind
+        return (narrowed or declared), c.tier, c.provider_kind, c.latency_ms
     except Exception:
         # Fail closed - assume the call touches everything the callee can read.
-        return declared, "", ""
+        return declared, "", "", 0.0

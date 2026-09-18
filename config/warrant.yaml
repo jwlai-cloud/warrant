@@ -11,13 +11,16 @@
 tiers:
   # Fast path: entity classification + the common allow case.
   # Small model, tight reasoning budget. Sovereign by default.
+  # Managed by default so the demo works with no GPU running. Switch `kind` to
+  # vllm and point base_url at a Nebius GPU Serverless Endpoint to self-host the
+  # same model - that is the entire change (ADR-0002).
   fast:
-    kind: vllm
-    base_url: ${WARRANT_VLLM_BASE_URL}
-    api_key: ${WARRANT_VLLM_API_KEY}
-    model: nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
+    kind: token_factory
+    base_url: ${WARRANT_TF_BASE_URL}
+    api_key: ${WARRANT_TF_API_KEY}
+    model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
     reasoning_budget: 64
-    timeout_s: 30
+    timeout_s: 60
 
   # Deep path: contested decisions and justification narratives that need
   # real reasoning over the architecture model.

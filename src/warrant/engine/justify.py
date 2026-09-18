@@ -36,9 +36,11 @@ async def write_justification(router: TierRouter, d: WarrantDecision) -> Warrant
     try:
         c = await router.complete("deep", _SYSTEM, user)
         d.justification = c.text.strip() or _fallback(d)
-        d.tier_used = c.tier
-        d.provider_kind = c.provider_kind
-        d.latency_ms = c.latency_ms
+        # Do NOT touch tier_used - that records which tier classified, and
+        # classification is the only model step that can change the outcome.
+        d.justify_tier = c.tier
+        d.justify_provider = c.provider_kind
+        d.justify_ms = c.latency_ms
     except Exception:
         d.justification = _fallback(d)
     return d

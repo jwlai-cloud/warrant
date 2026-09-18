@@ -53,7 +53,10 @@ async def request_warrant(body: WarrantIn):
             "missing_grants": [{"capability": c, "data_entity": e}
                                for c, e in d.missing_grants],
             "reasons": [{"code": r.code, "detail": r.detail} for r in d.reasons],
-            "served_by": {"tier": d.tier_used, "provider": d.provider_kind},
+            "served_by": {"tier": d.tier_used, "provider": d.provider_kind,
+                          "latency_ms": round(d.latency_ms, 2)},
+            "explained_by": {"tier": d.justify_tier, "provider": d.justify_provider,
+                             "latency_ms": round(d.justify_ms, 2)},
             "issued_at": d.issued_at,
             "expires_at": d.expires_at,
         },

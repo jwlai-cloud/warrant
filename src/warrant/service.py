@@ -15,11 +15,11 @@ class WarrantService:
         self.router: TierRouter = get_router(self.config)
 
     async def evaluate(self, req: WarrantRequest) -> WarrantDecision:
-        entities, tier, kind = await classify_entities(
+        entities, tier, kind, ms = await classify_entities(
             self.router, self.model, req.callee_agent, req.purpose, req.payload
         )
         d = decide(self.model, req, entities)
-        d.tier_used, d.provider_kind = tier, kind
+        d.tier_used, d.provider_kind, d.latency_ms = tier, kind, ms
         d = await write_justification(self.router, d)
         audit.record(self.config.audit_path, d)
         return d

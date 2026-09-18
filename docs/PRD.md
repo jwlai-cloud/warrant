@@ -84,8 +84,8 @@ part of this product that closes the loop rather than reporting a problem.
 | P0-2 | Refusal carries the architectural reason: capability, entity, classification, steward. | **done** |
 | P0-3 | Fail closed everywhere — unmodelled agent, unknown entity, unreachable tier, unclassifiable purpose. | **done** |
 | P0-4 | Nemotron narrows which entities a purpose touches, and can only narrow, never widen. | **done** |
-| P0-5 | A runtime call to Nebius (Token Factory inference **or** Serverless Endpoint compute). *Hackathon eligibility.* | **not started** |
-| P0-6 | At least one NVIDIA open model. *Hackathon eligibility.* | **not started** |
+| P0-5 | A runtime call to Nebius (Token Factory inference **or** Serverless Endpoint compute). *Hackathon eligibility.* | **done** &mdash; both tiers on Token Factory |
+| P0-6 | At least one NVIDIA open model. *Hackathon eligibility.* | **done** &mdash; Nemotron 3 Nano 30B + Super 120B |
 | P0-7 | Three agents that actually run and call each other across org boundaries. | **done** |
 | P0-8 | No path to another org's data bypasses `governed_call`. Asserted by test. | **done** |
 | P0-9 | Refused agent replans: degrade, escalate, record. | **done** |
@@ -200,7 +200,7 @@ here is who can fix it, and here is it finishing the job once they did.*
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | **Design stays at zero and costs 25%** | high | Console is P1-2 and next in the build order |
-| Nebius never gets set up → P0-5/P0-6 fail → **ineligible** | medium | Token Factory alone satisfies both; it is one config edit and no GPU |
+| ~~Nebius never set up → ineligible~~ | **retired** | Token Factory live 18 Sep; both tiers served by real Nemotron |
 | README describes replan output that ships late | **resolved** | Agents built; numbers now fall out of the fixtures |
 | Nano 4B classifies badly on camera | medium | P1-5 eval measures it before the video; 30B on Token Factory is the fallback |
 | Okta ships the missing half at Oktane (22–24 Sept) | low | Prior-art table is timestamped; re-check once before submission |
@@ -208,8 +208,8 @@ here is who can fix it, and here is it finishing the job once they did.*
 
 ## 10. Open questions
 
-- Nebius account/credits unverified — blocks P0-5, P0-6, P0-10.
-- Exact Token Factory model ID for Nemotron 3 Nano 30B.
+- Nebius AI Cloud account in progress — now blocks only P0-10 (hosted URL) and the self-hosted fast tier. Token Factory is live and eligibility is satisfied without it.
+- ~~Exact Token Factory model ID for Nemotron 3 Nano 30B.~~ Resolved from `GET /v1/models`: `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`. Their catalogue mixes casing conventions, so these strings must be read, never guessed.
 - Does Atlan + Immuta use steward metadata as a *runtime* input, or only in an
   approval workflow? Closest thing found to claim §2.1; needs a docs-level read
   before that claim is published.

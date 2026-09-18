@@ -26,6 +26,9 @@ def record(path: str | Path, d: WarrantDecision) -> dict:
         "tier_used": d.tier_used,
         "provider_kind": d.provider_kind,
         "latency_ms": round(d.latency_ms, 2),
+        "justify_tier": d.justify_tier,
+        "justify_provider": d.justify_provider,
+        "justify_ms": round(d.justify_ms, 2),
     }
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
