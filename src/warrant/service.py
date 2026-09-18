@@ -4,6 +4,7 @@ from __future__ import annotations
 from .config import Config, load_config
 from .engine import (WarrantDecision, WarrantRequest, audit, classify_entities,
                      decide, write_justification)
+from .engine.requests import RequestStore
 from .model import ArchitectureModel, load_model
 from .providers import TierRouter, get_router
 
@@ -13,6 +14,13 @@ class WarrantService:
         self.config = config or load_config()
         self.model: ArchitectureModel = load_model(self.config.model_dir)
         self.router: TierRouter = get_router(self.config)
+        self.requests = RequestStore(
+            self.config.audit_path.parent / "grant_requests.jsonl"
+        )
+        # Replay approvals so a grant approved in the console survives a
+        # restart. The YAML stays the source of truth for the base model; the
+        # store is the log of what humans have granted since.
+        self.model.grants.extend(self.requests.approved_grants())
 
     async def evaluate(self, req: WarrantRequest) -> WarrantDecision:
         entities, tier, kind, ms = await classify_entities(

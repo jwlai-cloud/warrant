@@ -12,13 +12,23 @@
 #   nebius ai endpoint stop --id <id>     # stopped = no compute charge
 set -euo pipefail
 
-# Nano 4B needs vLLM >= 0.15.1 and --mamba_ssm_cache_dtype float32.
-# Nano 30B-A3B needs >= 0.12.0 but wants an H100/A100, not an L40S.
-MODEL="${MODEL:-nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16}"
+# Platform is H100, not L40S, and that was a quota finding rather than a
+# preference. Serverless Endpoints draw on the `msp.cloudapps.*` quota
+# namespace, not `compute.instance.*`; in eu-north1 this tenant has
+# msp.cloudapps.gpu.l40s = 0 and msp.cloudapps.gpu.h100 = 16. Check yours:
+#   nebius quotas quota-allowance list --parent-id <tenant> --format json
+#
+# It works out better: NVIDIA's card supports Nano 30B-A3B on H100/A100, so we
+# self-host the SAME model Token Factory serves and the benchmark becomes
+# like-for-like instead of 4B-vs-30B.
+#
+# H100 is roughly 3x an L40S per hour. Endpoints do not scale to zero. Stop it.
+MODEL="${MODEL:-nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16}"
 IMAGE="${IMAGE:-vllm/vllm-openai:v0.18.0-cu130}"
 NAME="${NAME:-warrant-fast-tier}"
-PLATFORM="${PLATFORM:-gpu-l40s-a}"
-PRESET="${PRESET:-1gpu-8vcpu-32gb}"
+PLATFORM="${PLATFORM:-gpu-h100-sxm}"      # TODO(verify) exact platform string in the console
+PRESET="${PRESET:-1gpu-16vcpu-200gb}"     # TODO(verify) matching H100 preset
+SUBNET="${SUBNET:-vpcsubnet-e00j1frq8qfhnhvy2q}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"   # card says 262144; we need far less
 
 : "${AUTH_TOKEN:?set AUTH_TOKEN to a random secret; it becomes WARRANT_VLLM_API_KEY}"
@@ -30,6 +40,7 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"   # card says 262144; we need far less
 PARSER_URL="https://huggingface.co/${MODEL}/resolve/main/nano_v3_reasoning_parser.py"
 
 echo "Deploying ${NAME}: ${MODEL} on ${PLATFORM}/${PRESET} via ${IMAGE}"
+echo "Dry-run first to validate without spending:  add --dry-run to the call below"
 
 nebius ai endpoint create \
   --name "${NAME}" \
@@ -46,6 +57,7 @@ nebius ai endpoint create \
             --tensor-parallel-size 1 \
             --trust-remote-code \
             --mamba_ssm_cache_dtype float32 \
+            --max-num-seqs 8 \
             --reasoning-parser-plugin /tmp/nano_v3_reasoning_parser.py \
             --reasoning-parser nano_v3" \
   --platform "${PLATFORM}" \
@@ -55,6 +67,7 @@ nebius ai endpoint create \
   --public \
   --auth token \
   --token "${AUTH_TOKEN}" \
+  --subnet-id "${SUBNET}" \
   --preemptible
 
 cat <<NEXT
