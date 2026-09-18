@@ -89,7 +89,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P0-7 | Three agents that actually run and call each other across org boundaries. | **done** |
 | P0-8 | No path to another org's data bypasses `governed_call`. Asserted by test. | **done** |
 | P0-9 | Refused agent replans: degrade, escalate, record. | **done** |
-| P0-10 | Hosted demo URL a judge can open. *Submission requirement.* | **not started** |
+| P0-10 | Hosted demo URL a judge can open. *Submission requirement.* | console built &amp; served at `/`; needs a Nebius CPU endpoint (blocked on billing) |
 | P0-11 | Demo video under 3 minutes. *Submission requirement.* | **not started** |
 | P0-12 | Public repo, open-source licence, README with setup. | **done** |
 
@@ -97,8 +97,8 @@ part of this product that closes the loop rather than reporting a problem.
 
 | # | Requirement | State |
 |---|---|---|
-| P1-1 | **Approvals workflow.** A steward approves a grant request; the grant is written to the model; the next run resolves. | prototyped in UI |
-| P1-2 | Console with grant matrix, agent fleet, runs, approvals, filterable audit. | prototyped |
+| P1-1 | **Approvals workflow.** A steward approves a grant request; the grant is written to the model; the next run resolves. | **done** &mdash; real endpoints, steward-checked, replayable |
+| P1-2 | Console with grant matrix, agent fleet, runs, approvals, filterable audit. | **done** &mdash; `src/warrant/api/static/`, served at `/`, live API |
 | P1-3 | Audit shows which inference tier served each decision. | **done** |
 | P1-4 | Two-tier inference with fallback — stopping the GPU degrades, never breaks. | **done** |
 | P1-5 | Classifier eval with precision/recall per tier, run against real inference. | not started |
@@ -181,6 +181,22 @@ Nemotron has stopped being load-bearing (ADR-0007).
 **Product** — the demo is successful if a viewer who knows nothing about TOGAF
 watches three minutes and can state: *the agent was refused, here is exactly why,
 here is who can fix it, and here is it finishing the job once they did.*
+
+## 7a. Tier strategy
+
+Decided 18 Sep, and it is a cost decision rather than a technical one:
+
+- **Development and benchmarking: self-hosted H100.** `msp.cloudapps.gpu.h100 = 16`
+  in eu-north1 (L40S serverless quota is zero, and the rules exclude raw VMs).
+  H100 also means self-hosting the *same* Nemotron 3 Nano 30B that Token Factory
+  serves, so P2-3 becomes a like-for-like comparison.
+- **Judging period: Token Factory only.** Serverless Endpoints do not scale to
+  zero, judging runs 1&ndash;15 Dec, and nothing should be burning GPU hours
+  unattended for two weeks.
+- **The demo shows both.** The console reads the live tier from `/healthz` and
+  the audit names the tier that classified each decision, so "we support
+  sovereign and managed, and switching is a config edit" is demonstrated rather
+  than claimed. That is ADR-0002 paying off in the product surface.
 
 ## 8. Constraints
 

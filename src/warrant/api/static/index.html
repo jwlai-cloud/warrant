@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Warrant Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{--ground:#EEF0F4;--surface:#FFF;--sunk:#E4E7EE;--rail:#161A23;--rail-ink:#C9CFDE;
+    --rail-active:#2A3142;--ink:#14171F;--ink-soft:#4A5162;--ink-faint:#858CA0;
+    --rule:#D5D9E3;--rule-hard:#B4BAC9;--accent:#1D3B73;--accent-soft:#E2E9F6;
+    --ok:#2F6B47;--ok-bg:#E1EDE6;--bad:#A62B2B;--bad-bg:#F7E2E2;--warn:#8A5A17;--warn-bg:#FAEEDA;
+    --cls-i:#5A6274;--cls-c:#8A5A17;--cls-r:#8C2F2F;
+    --shadow:0 1px 2px rgba(20,23,31,.05),0 10px 26px -14px rgba(20,23,31,.22);}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --ground:#0C0E13;--surface:#161A23;--sunk:#10131A;--rail:#080A0E;--rail-ink:#9AA3B8;
+    --rail-active:#1D2431;--ink:#E8EAF1;--ink-soft:#A2AABC;--ink-faint:#6B7285;
+    --rule:#272C39;--rule-hard:#39404F;--accent:#7EA2E0;--accent-soft:#18212F;
+    --ok:#6FC08E;--ok-bg:#15251B;--bad:#E88686;--bad-bg:#2A1517;--warn:#D0A257;--warn-bg:#2A2114;
+    --cls-i:#8A92A6;--cls-c:#C99A4A;--cls-r:#E08A8A;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px -14px rgba(0,0,0,.7);}}
+  :root[data-theme="dark"]{
+    --ground:#0C0E13;--surface:#161A23;--sunk:#10131A;--rail:#080A0E;--rail-ink:#9AA3B8;
+    --rail-active:#1D2431;--ink:#E8EAF1;--ink-soft:#A2AABC;--ink-faint:#6B7285;
+    --rule:#272C39;--rule-hard:#39404F;--accent:#7EA2E0;--accent-soft:#18212F;
+    --ok:#6FC08E;--ok-bg:#15251B;--bad:#E88686;--bad-bg:#2A1517;--warn:#D0A257;--warn-bg:#2A2114;
+    --cls-i:#8A92A6;--cls-c:#C99A4A;--cls-r:#E08A8A;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px -14px rgba(0,0,0,.7);}
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:13.5px;line-height:1.5}
+  .shell{display:grid;grid-template-columns:214px 1fr;min-height:100%}
+
+  nav.rail{background:var(--rail);color:var(--rail-ink);display:flex;flex-direction:column;
+    padding-bottom:12px;padding-top:env(safe-area-inset-top,0px)}
+  .brand{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand b{font-family:Archivo,sans-serif;font-weight:700;font-size:16px;letter-spacing:.16em;
+    text-transform:uppercase;color:#fff;display:block}
+  .brand span{font-size:10.5px;color:#7C859B}
+  .navlist{list-style:none;margin:10px 0 0;padding:0 8px;display:grid;gap:1px}
+  .navlist button{width:100%;text-align:left;cursor:pointer;background:none;border:0;
+    color:var(--rail-ink);font:inherit;font-size:12.5px;padding:8px 10px;display:flex;
+    align-items:center;justify-content:space-between;gap:8px}
+  .navlist button:hover{background:var(--rail-active);color:#fff}
+  .navlist button[aria-current=page]{background:var(--rail-active);color:#fff;
+    box-shadow:inset 2px 0 0 var(--accent)}
+  .navlist button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+  .badge-n{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
+    background:var(--bad);color:#fff;padding:1px 6px;min-width:18px;text-align:center}
+  .badge-n[hidden]{display:none!important}
+  .rail-foot{margin-top:auto;padding:12px 16px 0;font-size:10.5px;color:#697287;
+    border-top:1px solid rgba(255,255,255,.08)}
+
+  main.stage{min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 20px;
+    background:var(--surface);border-bottom:1px solid var(--rule)}
+  .crumb{font-size:12px;color:var(--ink-faint);flex:1 1 200px}
+  .crumb b{color:var(--ink);font-weight:600}
+  .env{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;padding:2px 7px;border:1px solid var(--warn);color:var(--warn);
+    background:var(--warn-bg)}
+  .who{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
+  .avatar{width:22px;height:22px;background:var(--accent);color:#fff;display:grid;
+    place-items:center;font-size:10px;font-weight:600;font-family:Archivo,sans-serif;flex:none}
+  .tier-pill{font-family:"IBM Plex Mono",monospace;font-size:10.5px;display:inline-flex;
+    align-items:center;gap:6px;color:var(--ink-soft);border:1px solid var(--rule-hard);padding:2px 8px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
+  .dot.off{background:var(--bad)}
+
+  .view{padding:20px;display:none}.view.active{display:block}
+  .view-head{margin-bottom:16px}
+  .view-head h1{font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:0 0 3px}
+  .view-head p{margin:0;color:var(--ink-soft);font-size:13px;max-width:74ch}
+
+  .panel{background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow)}
+  .panel+.panel{margin-top:16px}
+  .panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 14px;
+    border-bottom:1px solid var(--rule);background:var(--sunk)}
+  .panel-head h2{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;margin:0;flex:1 1 auto}
+  .panel-body{padding:14px}
+
+  button.btn{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;
+    text-transform:uppercase;cursor:pointer;padding:7px 13px;border:1px solid var(--rule-hard);
+    background:var(--surface);color:var(--ink)}
+  button.btn:hover:not(:disabled){border-color:var(--ink)}
+  button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+  button.btn:disabled{opacity:.42;cursor:default}
+  button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+  .kpi{background:var(--surface);border:1px solid var(--rule);padding:13px 14px;box-shadow:var(--shadow)}
+  .kpi dt{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+    font-weight:600;margin:0 0 6px}
+  .kpi dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:25px;font-weight:600;
+    font-variant-numeric:tabular-nums;line-height:1.1}
+  .kpi .sub{font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;color:var(--ink-soft);margin-top:4px}
+  .kpi.alert dd{color:var(--bad)}.kpi.good dd{color:var(--ok)}
+
+  .tscroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  thead th{text-align:left;padding:8px 12px;background:var(--sunk);
+    border-bottom:1px solid var(--rule-hard);font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--rule);font-size:12.5px;vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:1px 6px;
+    border:1px solid var(--rule-hard);color:var(--ink-soft);white-space:nowrap}
+  .tag{display:inline-block;font-family:Archivo,sans-serif;font-size:9.5px;font-weight:700;
+    letter-spacing:.09em;text-transform:uppercase;padding:2px 7px;border:1px solid;white-space:nowrap}
+  .tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+  .tag.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}
+  .tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+  .tag.mute{color:var(--ink-faint);border-color:var(--rule-hard)}
+  .cls{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;
+    border:1px solid currentColor;padding:1px 5px;display:inline-block}
+  .cls.internal{color:var(--cls-i)}.cls.confidential{color:var(--cls-c)}.cls.restricted{color:var(--cls-r)}
+
+  table.matrix{min-width:700px}
+  table.matrix th,table.matrix td{border:1px solid var(--rule)}
+  table.matrix thead th{vertical-align:bottom;padding:9px 10px}
+  table.matrix .ent{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    margin-bottom:4px;text-transform:none;letter-spacing:0;color:var(--ink)}
+  th.caprow{text-align:left;padding:9px 12px;background:var(--sunk);font-weight:600;
+    font-size:12.5px;white-space:nowrap}
+  th.caprow small{display:block;font-weight:400;font-size:10.5px;color:var(--ink-faint)}
+  td.cell{padding:0;height:46px;text-align:center}
+  td.cell .mk{display:flex;align-items:center;justify-content:center;height:100%;
+    font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600}
+  td.cell.y .mk{color:var(--ok);background:var(--ok-bg)}
+  td.cell.n .mk{color:var(--ink-faint)}
+  td.cell.gap .mk{color:var(--bad);background:var(--bad-bg);outline:2px solid var(--bad);outline-offset:-2px}
+  td.cell.fresh .mk{animation:flash .9s ease-out 1}
+  @keyframes flash{0%{background:var(--accent);color:#fff}}
+  td.cell.lit-y .mk{box-shadow:inset 0 0 0 2px var(--ok)}
+  td.cell.lit-n .mk{box-shadow:inset 0 0 0 2px var(--bad)}
+  td.cell.busy .mk{animation:pulse .5s ease-in-out infinite}
+  @keyframes pulse{50%{filter:brightness(1.35)}}
+  @media (prefers-reduced-motion:reduce){td.cell.busy .mk,td.cell.fresh .mk{animation:none}}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:9px 14px;border-top:1px solid var(--rule);
+    background:var(--sunk);font-size:11.5px;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border:1px solid;flex:none}
+  .sw.y{background:var(--ok-bg);border-color:var(--ok)}
+  .sw.n{background:transparent;border-color:var(--rule-hard)}
+  .sw.x{background:var(--bad-bg);border-color:var(--bad)}
+
+  ol.steps{list-style:none;margin:0;padding:0}
+  ol.steps>li{border-bottom:1px solid var(--rule);padding:12px 14px}
+  ol.steps>li:last-child{border-bottom:0}
+  .step-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+  .hop{font-family:"IBM Plex Mono",monospace;font-size:12px;flex:1 1 280px;min-width:0;word-break:break-word}
+  .hop i{font-style:normal;color:var(--ink-faint)}
+  .purpose{margin:7px 0 0;padding-left:10px;border-left:2px solid var(--rule-hard);
+    color:var(--ink-soft);font-size:12.5px}
+  .why{margin-top:9px;padding:9px 11px;background:var(--bad-bg);border-left:3px solid var(--bad);font-size:12.5px}
+  .meta{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--ink-faint)}
+
+  .outcome{border-top:2px solid var(--ink);padding:13px 14px}
+  .outcome h3{font-family:Archivo,sans-serif;font-size:11px;letter-spacing:.11em;
+    text-transform:uppercase;margin:0 0 9px}
+  .branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .branch{border:1px solid var(--rule);background:var(--sunk);padding:11px}
+  .branch h4{margin:0 0 6px;font-family:Archivo,sans-serif;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--accent)}
+  .branch p{margin:0;font-size:12px;color:var(--ink-soft)}
+  .tally{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600;display:block;
+    font-variant-numeric:tabular-nums;margin-bottom:2px}
+
+  .req{border:1px solid var(--rule);background:var(--surface)}
+  .req+.req{margin-top:12px}
+  .req-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:11px 14px;
+    border-bottom:1px solid var(--rule);background:var(--sunk)}
+  .req-head .t{flex:1 1 260px;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+  .req-body{padding:13px 14px;display:grid;gap:11px}
+  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  .field dt{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+    font-weight:600;margin-bottom:3px}
+  .field dd{margin:0;font-size:12.5px}
+  .justify{padding:10px 12px;background:var(--accent-soft);border-left:3px solid var(--accent);font-size:12.5px}
+  label.rl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);
+    font-weight:600;display:block;margin-bottom:5px}
+  textarea,select{width:100%;font:inherit;font-size:12.5px;padding:7px 9px;
+    border:1px solid var(--rule-hard);background:var(--surface);color:var(--ink)}
+  textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
+  .empty{padding:26px 14px;text-align:center;color:var(--ink-faint);font-size:12.5px}
+  .banner{padding:11px 14px;border:1px solid var(--ok);background:var(--ok-bg);color:var(--ok);
+    font-size:12.5px;margin-bottom:14px}
+  .banner[hidden]{display:none!important}
+  .banner.bad{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .filters select{width:auto;min-width:118px}
+
+  .fleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:12px}
+  .agent{border:1px solid var(--rule);background:var(--surface);padding:13px;box-shadow:var(--shadow)}
+  .agent h3{margin:0 0 2px;font-family:Archivo,sans-serif;font-size:13.5px;font-weight:600}
+  .agent .org{font-size:11px;color:var(--ink-faint);margin-bottom:9px}
+  .agent dl{margin:0;display:grid;gap:7px}
+  .agent dt{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  .agent dd{margin:0;display:flex;flex-wrap:wrap;gap:4px}
+
+  @media (max-width:760px){
+    .shell{grid-template-columns:1fr}
+    .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding-bottom:6px}
+    .navlist button{white-space:nowrap}
+    .rail-foot{display:none}
+    .view{padding:16px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <div class="brand"><b>Warrant</b><span>Authorization Control</span></div>
+    <ul class="navlist" id="nav">
+      <li><button type="button" data-view="overview" aria-current="page">Overview</button></li>
+      <li><button type="button" data-view="matrix">Grant Matrix</button></li>
+      <li><button type="button" data-view="fleet">Agent Fleet</button></li>
+      <li><button type="button" data-view="runs">Runs</button></li>
+      <li><button type="button" data-view="approvals">Approvals <span class="badge-n" id="navBadge" hidden>0</span></button></li>
+      <li><button type="button" data-view="audit">Audit</button></li>
+    </ul>
+    <div class="rail-foot">Decision engine deterministic.<br>Nemotron classifies &amp; explains.</div>
+  </nav>
+
+  <main class="stage">
+    <div class="topbar">
+      <div class="crumb">Northwind Group &rsaquo; <b id="crumbView">Overview</b></div>
+      <span class="env">demo</span>
+      <span class="tier-pill" id="tierPill"><span class="dot" id="tierDot"></span> <span id="tierText">connecting</span></span>
+      <span class="who"><span class="avatar">PE</span> Platform Engineering</span>
+    </div>
+
+    <section class="view active" id="v-overview">
+      <div class="view-head"><h1>Overview</h1>
+        <p>Cross-boundary agent traffic. A refusal is not an incident &mdash; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
+      <div class="banner" id="ovBanner" hidden></div>
+      <dl class="kpis">
+        <div class="kpi"><dt>Governed calls</dt><dd id="kCalls">0</dd><div class="sub">recorded</div></div>
+        <div class="kpi"><dt>Refusal rate</dt><dd id="kRate">&mdash;</dd><div class="sub">of all decisions</div></div>
+        <div class="kpi alert"><dt>Awaiting grant</dt><dd id="kPending">0</dd><div class="sub">requests in queue</div></div>
+        <div class="kpi"><dt>Work blocked</dt><dd id="kBlocked">0</dd><div class="sub">claims held open</div></div>
+        <div class="kpi good"><dt>Model coverage</dt><dd id="kCov">&mdash;</dd><div class="sub">grants across the matrix</div></div>
+      </dl>
+      <div class="panel">
+        <div class="panel-head"><h2>Q3 expense reconciliation</h2>
+          <button class="btn primary" id="ovRun" type="button">Run</button></div>
+        <div class="panel-body">
+          <p style="margin:0 0 11px;color:var(--ink-soft)">The Expense Auditor (Finance) must close 47 Q3 claims. Verifying them needs data held by Operations and by People&nbsp;&amp;&nbsp;Culture.</p>
+          <div class="tscroll"><table>
+            <thead><tr><th>Claim type</th><th>Count</th><th>Verified against</th><th>Held by</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Supplier rate</td><td class="num">41</td><td><span class="chip">Supplier.Contract</span></td><td>Operations</td><td id="ovS1"><span class="tag mute">not started</span></td></tr>
+              <tr><td>Travel allowance</td><td class="num">6</td><td><span class="chip">Employee.Compensation</span></td><td>People &amp; Culture</td><td id="ovS2"><span class="tag mute">not started</span></td></tr>
+            </tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-matrix">
+      <div class="view-head"><h1>Grant Matrix</h1>
+        <p>Business capability &times; data entity, read live from the architecture model. A grant is an explicit act by a named owner; its absence is a denial.</p></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Capabilities &times; data entities</h2><span class="chip" id="mxCount">loading</span></div>
+        <div class="tscroll"><table class="matrix" id="matrix"><thead></thead><tbody></tbody></table></div>
+        <div class="legend">
+          <span><i class="sw y"></i> grant held</span>
+          <span><i class="sw n"></i> no grant &mdash; never requested</span>
+          <span><i class="sw x"></i> no grant &mdash; requested and refused</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-fleet">
+      <div class="view-head"><h1>Agent Fleet</h1>
+        <p>Every agent is registered against the capability it serves and the data entities it declares. An unregistered agent has no authority at all &mdash; WARRANT fails closed.</p></div>
+      <div class="fleet" id="fleet"></div>
+    </section>
+
+    <section class="view" id="v-runs">
+      <div class="view-head"><h1>Runs</h1>
+        <p>Every cross-boundary call passes through one seam. A refusal returns structured reasons to the planner &mdash; it does not raise &mdash; and the agent replans.</p></div>
+      <div class="panel">
+        <div class="panel-head"><h2>expense-auditor &middot; Q3 reconciliation</h2>
+          <span class="chip" id="runState">idle</span>
+          <button class="btn primary" id="runBtn" type="button">Run</button>
+          <button class="btn" id="resetBtn" type="button">Reset demo</button></div>
+        <ol class="steps" id="steps"></ol>
+        <div class="outcome" id="outcome" hidden><h3 id="outcomeHead">Replanned</h3><div class="branches" id="branches"></div></div>
+      </div>
+    </section>
+
+    <section class="view" id="v-approvals">
+      <div class="view-head"><h1>Approvals</h1>
+        <p>Grant requests raised by agents, addressed to the organisation unit that stewards the data. Approving one writes a grant into the model &mdash; the next run resolves without a refusal.</p></div>
+      <div class="banner" id="apBanner" hidden></div>
+      <div id="reqList"></div>
+    </section>
+
+    <section class="view" id="v-audit">
+      <div class="view-head"><h1>Audit</h1>
+        <p>Append-only. Every decision, granted or refused, with the entity it concerned and the inference tier that classified it.</p></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Decision log</h2>
+          <div class="filters">
+            <select id="fOutcome" aria-label="Filter by outcome"><option value="">All outcomes</option><option value="granted">Granted</option><option value="refused">Refused</option></select>
+            <select id="fEntity" aria-label="Filter by data entity"><option value="">All entities</option></select>
+          </div>
+          <button class="btn" id="refreshAudit" type="button">Refresh</button></div>
+        <div class="tscroll"><table>
+          <thead><tr><th>Warrant</th><th>Issued</th><th>Outcome</th><th>Caller</th><th>Callee</th><th>Entities</th><th>Classified by</th><th>Latency</th></tr></thead>
+          <tbody id="auditBody"></tbody></table></div>
+        <div class="empty" id="auditEmpty">No decisions recorded yet.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (i) { return document.getElementById(i); };
+  var M = null, AUDIT = [], REQS = [], RUNNING = false;
+
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c;
+    if (x !== undefined) e.textContent = x; return e; }
+  async function api(path, opts) {
+    var r = await fetch(path, opts || {});
+    var body = null;
+    try { body = await r.json(); } catch (e) { body = null; }
+    return { ok: r.ok, status: r.status, body: body };
+  }
+
+  /* ---- nav ---- */
+  var VIEWS = ["overview", "matrix", "fleet", "runs", "approvals", "audit"];
+  function show(n) {
+    VIEWS.forEach(function (v) { $("v-" + v).classList.toggle("active", v === n); });
+    Array.prototype.forEach.call($("nav").querySelectorAll("button"), function (b) {
+      if (b.getAttribute("data-view") === n) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    $("crumbView").textContent = n.charAt(0).toUpperCase() + n.slice(1);
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call($("nav").querySelectorAll("button"), function (b) {
+    b.addEventListener("click", function () { show(b.getAttribute("data-view")); });
+  });
+
+  /* ---- health / tier ---- */
+  async function loadHealth() {
+    var r = await api("/healthz");
+    if (!r.ok) { $("tierText").textContent = "plane unreachable"; $("tierDot").className = "dot off"; return; }
+    var t = r.body.tiers || {};
+    var fast = t.fast || {};
+    $("tierText").textContent = "fast: " + (fast.kind || "?") + " · " + (fast.model || "").split("/").pop();
+    $("tierPill").title = JSON.stringify(t, null, 1);
+  }
+
+  /* ---- model / matrix ---- */
+  function cellKey(c, e) { return c + "|" + e; }
+  function renderMatrix() {
+    var ents = M.data_entities, caps = M.capabilities;
+    var thead = $("matrix").querySelector("thead"), tb = $("matrix").querySelector("tbody");
+    thead.textContent = ""; tb.textContent = "";
+
+    var hr = document.createElement("tr");
+    var h0 = el("th", "caprow", "Capability"); h0.scope = "col"; hr.appendChild(h0);
+    ents.forEach(function (e) {
+      var th = document.createElement("th"); th.scope = "col";
+      th.appendChild(el("span", "ent", e.id));
+      th.appendChild(el("span", "cls " + e.classification, e.classification));
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+
+    var orgName = {}; M.org_units.forEach(function (o) { orgName[o.id] = o.name; });
+    var held = {};
+    M.grants.forEach(function (g) { held[cellKey(g.capability, g.data_entity)] = g; });
+
+    caps.forEach(function (c) {
+      var tr = document.createElement("tr");
+      var th = el("th", "caprow"); th.scope = "row";
+      th.appendChild(document.createTextNode(c.name));
+      th.appendChild(el("small", null, orgName[c.owner_org] || c.owner_org));
+      tr.appendChild(th);
+      ents.forEach(function (e) {
+        var k = cellKey(c.id, e.id), g = held[k];
+        var td = el("td", "cell " + (g ? "y" : "n"));
+        td.setAttribute("data-c", k);
+        if (g) td.title = "granted by " + g.granted_by;
+        var mk = el("span", "mk", g ? "✓" : "·");
+        td.appendChild(mk); tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    $("mxCount").textContent = M.grants.length + " grants / " + (caps.length * ents.length) + " cells";
+    $("kCov").textContent = M.grants.length + "/" + (caps.length * ents.length);
+  }
+
+  function renderFleet() {
+    var f = $("fleet"); f.textContent = "";
+    var orgName = {}; M.org_units.forEach(function (o) { orgName[o.id] = o.name; });
+    var capName = {}; M.capabilities.forEach(function (c) { capName[c.id] = c.name; });
+    M.agents.forEach(function (a) {
+      var d = el("div", "agent");
+      d.appendChild(el("h3", null, a.name));
+      d.appendChild(el("div", "org", (orgName[a.org] || a.org) + " · " + (capName[a.serves] || a.serves)));
+      var dl = document.createElement("dl");
+      dl.appendChild(el("dt", null, "Role"));
+      var dd1 = el("dd");
+      dd1.appendChild(el("span", "tag " + (a.id === "expense-auditor" ? "ok" : "mute"),
+        a.id === "expense-auditor" ? "planner" : "serving"));
+      if (a.external) dd1.appendChild(el("span", "tag warn", "external"));
+      dl.appendChild(dd1);
+      dl.appendChild(el("dt", null, "Declares"));
+      var dd2 = el("dd");
+      a.reads.forEach(function (r) { dd2.appendChild(el("span", "chip", r)); });
+      dl.appendChild(dd2);
+      d.appendChild(dl); f.appendChild(d);
+    });
+  }
+
+  async function loadModel() {
+    var r = await api("/v1/model");
+    if (!r.ok) return;
+    M = r.body; renderMatrix(); renderFleet();
+    var sel = $("fEntity");
+    while (sel.options.length > 1) sel.remove(1);
+    M.data_entities.forEach(function (e) {
+      var o = document.createElement("option"); o.value = e.id; o.textContent = e.id; sel.appendChild(o);
+    });
+  }
+
+  /* ---- audit ---- */
+  function renderAudit() {
+    var b = $("auditBody"); b.textContent = "";
+    var fo = $("fOutcome").value, fe = $("fEntity").value;
+    var rows = AUDIT.filter(function (r) {
+      var out = r.granted ? "granted" : "refused";
+      return (!fo || out === fo) && (!fe || (r.entities_touched || []).indexOf(fe) >= 0);
+    });
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.appendChild(el("td", "num", r.id));
+      tr.appendChild(el("td", "num", (r.issued_at || "").slice(11, 19)));
+      var o = el("td"); o.appendChild(el("span", "tag " + (r.granted ? "ok" : "bad"),
+        r.granted ? "granted" : "refused")); tr.appendChild(o);
+      tr.appendChild(el("td", "num", r.caller));
+      tr.appendChild(el("td", "num", r.callee));
+      var e = el("td"); (r.entities_touched || []).forEach(function (x) {
+        e.appendChild(el("span", "chip", x)); }); tr.appendChild(e);
+      tr.appendChild(el("td", "num", (r.tier_used || "-") + "/" + (r.provider_kind || "-")));
+      tr.appendChild(el("td", "num", Math.round(r.latency_ms || 0) + " ms"));
+      b.appendChild(tr);
+    });
+    $("auditEmpty").hidden = rows.length > 0;
+    $("auditEmpty").textContent = AUDIT.length ? "No decisions match these filters." : "No decisions recorded yet.";
+    var refused = AUDIT.filter(function (r) { return !r.granted; }).length;
+    $("kCalls").textContent = AUDIT.length;
+    $("kRate").textContent = AUDIT.length ? Math.round(refused / AUDIT.length * 100) + "%" : "—";
+  }
+  async function loadAudit() {
+    var r = await api("/v1/audit?limit=200");
+    if (r.ok) { AUDIT = r.body.entries || []; renderAudit(); }
+  }
+  $("fOutcome").addEventListener("change", renderAudit);
+  $("fEntity").addEventListener("change", renderAudit);
+  $("refreshAudit").addEventListener("click", loadAudit);
+
+  /* ---- approvals ---- */
+  function stewardOf(entityId) {
+    if (!M) return { id: "", name: "" };
+    var de = M.data_entities.filter(function (e) { return e.id === entityId; })[0];
+    if (!de) return { id: "", name: "" };
+    var o = M.org_units.filter(function (x) { return x.id === de.owner_org; })[0];
+    return o || { id: de.owner_org, name: de.owner_org };
+  }
+
+  function renderApprovals() {
+    var list = $("reqList"); list.textContent = "";
+    var pending = REQS.filter(function (r) { return r.state === "pending"; });
+    $("navBadge").hidden = pending.length === 0;
+    $("navBadge").textContent = String(pending.length);
+    $("kPending").textContent = pending.length;
+    $("kBlocked").textContent = pending.reduce(function (a, r) { return a + (r.blocking || 0); }, 0);
+
+    if (!REQS.length) {
+      var p = el("div", "panel");
+      p.appendChild(el("div", "empty", "No grant requests. Run the Q3 reconciliation to raise one."));
+      list.appendChild(p); return;
+    }
+
+    REQS.forEach(function (r) {
+      var st = stewardOf(r.data_entity);
+      var box = el("div", "req");
+      var head = el("div", "req-head");
+      head.appendChild(el("span", "t", "GR-" + r.id + "  ·  " + r.capability + " → " + r.data_entity));
+      head.appendChild(el("span", "tag " + (r.state === "pending" ? "warn" : r.state === "approved" ? "ok" : "mute"),
+        r.state === "pending" ? "awaiting decision" : r.state));
+      box.appendChild(head);
+
+      var body = el("div", "req-body");
+      var fields = el("div", "fields");
+      var de = (M ? M.data_entities.filter(function (e) { return e.id === r.data_entity; })[0] : null) || {};
+      [["Requested by", r.requested_by], ["Steward", st.name],
+       ["Classification", de.classification || "—"],
+       ["Work blocked", (r.blocking || 0) + " Q3 claims"]].forEach(function (pr) {
+        var d = el("div", "field"); d.appendChild(el("dt", null, pr[0]));
+        d.appendChild(el("dd", null, pr[1])); fields.appendChild(d);
+      });
+      body.appendChild(fields);
+      if (r.reason) body.appendChild(el("div", "justify", r.reason));
+
+      if (r.state === "pending") {
+        var lw = el("div");
+        var lab = el("label", "rl", "Decision note (recorded against the grant)");
+        lab.setAttribute("for", "note-" + r.id); lw.appendChild(lab);
+        var ta = document.createElement("textarea");
+        ta.id = "note-" + r.id; ta.rows = 2;
+        ta.value = "Approved for Q3 close. Scope limited to allowance verification.";
+        lw.appendChild(ta); body.appendChild(lw);
+
+        var row = el("div", "btn-row");
+        var ok = el("button", "btn ok", "Approve as " + st.name); ok.type = "button";
+        var no = el("button", "btn", "Decline"); no.type = "button";
+        row.appendChild(ok); row.appendChild(no); body.appendChild(row);
+        ok.addEventListener("click", function () { decide(r, st, true, ta.value); });
+        no.addEventListener("click", function () { decide(r, st, false, ta.value); });
+      } else if (r.note) {
+        body.appendChild(el("div", "justify", r.decided_by + ": " + r.note));
+      }
+      box.appendChild(body); list.appendChild(box);
+    });
+  }
+
+  async function decide(r, steward, approve, note) {
+    var res = await api("/v1/grant-requests/" + r.id + "/decision?approve=" + (approve ? "true" : "false"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decided_by: steward.id, note: note || "" })
+    });
+    var b = $("apBanner"); b.hidden = false;
+    if (!res.ok) {
+      b.className = "banner bad";
+      b.textContent = (res.body && res.body.error) || ("failed: " + res.status);
+      return;
+    }
+    b.className = "banner";
+    b.textContent = approve
+      ? "Grant written to the model: " + r.capability + " → " + r.data_entity + ". Re-run the reconciliation to close the remaining claims."
+      : "Request declined. The blocked claims remain open.";
+    await loadModel(); await loadRequests();
+    if (approve) {
+      var td = document.querySelector('td[data-c="' + cellKey(r.capability, r.data_entity) + '"]');
+      if (td) td.classList.add("fresh");
+      var ob = $("ovBanner"); ob.hidden = false; ob.className = "banner";
+      ob.textContent = "A grant was approved since the last run. Re-run the Q3 reconciliation — all 47 claims should now close.";
+    }
+  }
+
+  async function loadRequests() {
+    var r = await api("/v1/grant-requests");
+    if (r.ok) { REQS = r.body.requests || []; renderApprovals(); }
+  }
+
+  /* ---- run ---- */
+  function markGaps(blocked) {
+    (blocked || []).forEach(function (ent) {
+      M.capabilities.forEach(function (c) {
+        var td = document.querySelector('td[data-c="' + cellKey(c.id, ent) + '"]');
+        if (td && td.classList.contains("n") && c.id === "expense-management") {
+          td.classList.remove("n"); td.classList.add("gap");
+          td.querySelector(".mk").textContent = "×";
+        }
+      });
+    });
+  }
+
+  function renderRun(out) {
+    var steps = $("steps"); steps.textContent = "";
+    out.results.forEach(function (r) {
+      var li = document.createElement("li");
+      var top = el("div", "step-top");
+      var hop = el("div", "hop");
+      hop.appendChild(document.createTextNode("expense-auditor "));
+      hop.appendChild(el("i", null, "(Finance)"));
+      hop.appendChild(document.createTextNode(" → " + r.callee));
+      top.appendChild(hop);
+      top.appendChild(el("span", "tag " + (r.granted ? "ok" : "bad"), r.granted ? "granted" : "refused"));
+      li.appendChild(top);
+      li.appendChild(el("p", "purpose", "“" + r.purpose + "”"));
+      var meta = el("div", "meta");
+      meta.appendChild(document.createTextNode("touches "));
+      (r.entities || []).forEach(function (e) { meta.appendChild(el("span", "chip", e)); });
+      var sb = r.served_by || {};
+      meta.appendChild(document.createTextNode(" · classified by " + (sb.tier || "?") + "/" + (sb.provider || "?") + " in " + Math.round(sb.latency_ms || 0) + "ms"));
+      li.appendChild(meta);
+      if (!r.granted) {
+        var why = el("div", "why");
+        why.textContent = "Capability expense-management holds no grant to " + (r.entities || []).join(", ")
+          + ", stewarded by " + stewardOf((r.entities || [])[0]).name + ".";
+        li.appendChild(why);
+      }
+      steps.appendChild(li);
+    });
+
+    var out2 = $("outcome"), br = $("branches");
+    br.textContent = ""; out2.hidden = false;
+    if (out.unresolved === 0) {
+      $("outcomeHead").textContent = "Completed";
+      var b0 = el("div", "branch"); b0.appendChild(el("h4", null, "Reconciled"));
+      b0.appendChild(el("span", "tally", out.closed + " / " + out.total));
+      b0.appendChild(el("p", null, "Every Q3 claim closed. No replan was needed."));
+      br.appendChild(b0);
+      $("runState").textContent = "complete · " + out.closed + "/" + out.total;
+    } else {
+      $("outcomeHead").textContent = "Replanned";
+      var b1 = el("div", "branch"); b1.appendChild(el("h4", null, "Degrade"));
+      b1.appendChild(el("span", "tally", out.closed + " / " + out.total));
+      b1.appendChild(el("p", null, "Closed with the data the grants allowed. " + out.unresolved
+        + " remain open, blocked on " + out.blocked_entities.join(", ") + "."));
+      br.appendChild(b1);
+      var b2 = el("div", "branch"); b2.appendChild(el("h4", null, "Escalate"));
+      b2.appendChild(el("p", null, out.grant_requests.length
+        ? "Grant request raised and routed to the steward who can approve it. See Approvals."
+        : "A request for this grant is already open."));
+      br.appendChild(b2);
+      var b3 = el("div", "branch"); b3.appendChild(el("h4", null, "Record"));
+      b3.appendChild(el("p", null, "The refused path is written to the run log, so the next reconciliation does not retry it blind."));
+      br.appendChild(b3);
+      $("runState").textContent = "replanned · " + out.closed + "/" + out.total;
+    }
+
+    $("ovS1").textContent = ""; $("ovS1").appendChild(el("span", "tag ok", out.closed + " closed"));
+    $("ovS2").textContent = "";
+    $("ovS2").appendChild(out.unresolved
+      ? el("span", "tag bad", out.unresolved + " blocked")
+      : el("span", "tag ok", "closed"));
+    markGaps(out.blocked_entities);
+  }
+
+  async function run() {
+    if (RUNNING) return;
+    RUNNING = true;
+    $("runBtn").disabled = true; $("ovRun").disabled = true;
+    $("runBtn").textContent = "Running…"; $("ovRun").textContent = "Running…";
+    $("runState").textContent = "calling the plane…";
+    $("ovBanner").hidden = true; $("apBanner").hidden = true;
+    show("runs");
+
+    var poll = setInterval(loadAudit, 900);
+    var r = await api("/v1/demo/run", { method: "POST" });
+    clearInterval(poll);
+
+    if (!r.ok) {
+      $("runState").textContent = "failed";
+      var b = $("apBanner"); b.hidden = false; b.className = "banner bad";
+      b.textContent = "Run failed: " + r.status;
+    } else {
+      renderRun(r.body);
+      await loadAudit(); await loadRequests();
+    }
+    RUNNING = false;
+    $("runBtn").disabled = false; $("ovRun").disabled = false;
+    $("runBtn").textContent = "Run again"; $("ovRun").textContent = "Run again";
+  }
+  $("runBtn").addEventListener("click", run);
+  $("ovRun").addEventListener("click", run);
+
+  $("resetBtn").addEventListener("click", async function () {
+    await api("/v1/demo/reset", { method: "POST" });
+    $("steps").textContent = ""; $("outcome").hidden = true;
+    $("runState").textContent = "idle";
+    $("ovBanner").hidden = true; $("apBanner").hidden = true;
+    $("runBtn").textContent = "Run"; $("ovRun").textContent = "Run";
+    $("ovS1").textContent = ""; $("ovS1").appendChild(el("span", "tag mute", "not started"));
+    $("ovS2").textContent = ""; $("ovS2").appendChild(el("span", "tag mute", "not started"));
+    await loadModel(); await loadAudit(); await loadRequests();
+  });
+
+  /* ---- boot ---- */
+  (async function () {
+    await loadHealth();
+    await loadModel();
+    await loadAudit();
+    await loadRequests();
+  })();
+})();
+</script>
+</body>
+</html>
