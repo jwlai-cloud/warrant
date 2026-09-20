@@ -1,7 +1,8 @@
 # 0004. The language model never makes the authorization decision
 
 Date: 2026-09-17
-Status: Accepted
+Status: Accepted — **one claim in Consequences is corrected by
+[ADR-0009](0009-narrowing-can-escalate.md)**; the decision itself stands
 
 ## Context
 

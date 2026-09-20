@@ -70,6 +70,7 @@ async def request_warrant(body: WarrantIn):
             "headline": d.headline(),
             "justification": d.justification,
             "entities_touched": d.entities_touched,
+            "decisive_exclusions": d.decisive_exclusions,
             "missing_grants": [{"capability": c, "data_entity": e}
                                for c, e in d.missing_grants],
             "reasons": [{"code": r.code, "detail": r.detail} for r in d.reasons],

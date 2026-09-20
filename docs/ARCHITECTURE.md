@@ -65,9 +65,13 @@ structured reasons. No I/O, no model call. *Not* responsible for deciding which
 entities are touched, or for phrasing anything for humans.
 
 **`warrant.engine.classify`** — fast-tier Nemotron call that narrows the callee's
-declared data entities to those a specific call requires. Can only ever
-*narrow* the declared set, never widen it, so a hallucination cannot grant
-access. Fails closed to the full declared set.
+declared data entities to those a specific call requires. Intersecting with the
+declared set means the model can never reach an entity the callee does not hold.
+It *can* drop one the callee does hold, and that is the one path by which model
+output changes an outcome (ADR-0009): a dropped entity's grant is never checked.
+Such exclusions are recorded as `decisive_exclusions` and can be refused
+entirely with `strict_narrowing`. Fails closed to the full declared set on any
+error.
 
 **`warrant.engine.justify`** — deep-tier Nemotron call that turns structured
 reasons into one paragraph of prose. *Not* responsible for the outcome; it

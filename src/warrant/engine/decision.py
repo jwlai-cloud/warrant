@@ -47,6 +47,11 @@ class WarrantDecision:
     reasons: list[Reason] = field(default_factory=list)
     entities_touched: list[str] = field(default_factory=list)
     missing_grants: list[tuple[str, str]] = field(default_factory=list)
+    # Entities the classifier dropped that the caller holds NO grant for.
+    # Dropping one of these is what turns a refusal into a grant, so it is the
+    # one model output with authority over the outcome. Recorded on every
+    # decision, and re-included when strict_narrowing is on.
+    decisive_exclusions: list[str] = field(default_factory=list)
     justification: str = ""
     # Which tier CLASSIFIED. This is the one that can affect the outcome, so it
     # is the one the audit record and the UI mean by "served by".

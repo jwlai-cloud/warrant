@@ -19,6 +19,7 @@ def record(path: str | Path, d: WarrantDecision) -> dict:
         "callee": d.request.callee_agent,
         "purpose": d.request.purpose,
         "entities_touched": d.entities_touched,
+        "decisive_exclusions": d.decisive_exclusions,
         "missing_grants": [{"capability": c, "data_entity": e}
                            for c, e in d.missing_grants],
         "reasons": [asdict(r) for r in d.reasons],

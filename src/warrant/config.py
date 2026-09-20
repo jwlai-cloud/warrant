@@ -29,6 +29,11 @@ class TierConfig(BaseModel):
 
 class Config(BaseModel):
     tiers: dict[str, TierConfig]
+    # When true, an entity the classifier dropped that the caller has no grant
+    # for is put back, so a call is never granted on the strength of the model
+    # having excluded something. Safe and over-restrictive: it denies calls that
+    # a correct narrowing would have allowed. Off by default; see ADR-0009.
+    strict_narrowing: bool = False
     fallback: dict[str, str | None] = Field(default_factory=dict)
     model_dir: Path = Path("config/model")
     audit_path: Path = Path("audit/warrant.jsonl")

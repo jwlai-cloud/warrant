@@ -83,7 +83,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P0-1 | Authorization decision computed deterministically from the architecture model. No model call. | **done** |
 | P0-2 | Refusal carries the architectural reason: capability, entity, classification, steward. | **done** |
 | P0-3 | Fail closed everywhere — unmodelled agent, unknown entity, unreachable tier, unclassifiable purpose. | **done** |
-| P0-4 | Nemotron narrows which entities a purpose touches, and can only narrow, never widen. | **done** |
+| P0-4 | Nemotron narrows which entities a purpose touches; it cannot reach an entity the callee does not hold. Dropping one it does hold is a measured escalation path &mdash; recorded as `decisive_exclusions`, refusable via `strict_narrowing` (ADR-0009). | **done, with a named residual risk** |
 | P0-5 | A runtime call to Nebius (Token Factory inference **or** Serverless Endpoint compute). *Hackathon eligibility.* | **done** &mdash; both tiers on Token Factory |
 | P0-6 | At least one NVIDIA open model. *Hackathon eligibility.* | **done** &mdash; Nemotron 3 Nano 30B + Super 120B |
 | P0-7 | Three agents that actually run and call each other across org boundaries. | **done** |
@@ -101,7 +101,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P1-2 | Console with grant matrix, agent fleet, runs, approvals, filterable audit. | **done** &mdash; `src/warrant/api/static/`, served at `/`, live API |
 | P1-3 | Audit shows which inference tier served each decision. | **done** |
 | P1-4 | Two-tier inference with fallback — stopping the GPU degrades, never breaks. | **done** |
-| P1-5 | Classifier eval with precision/recall per tier, run against real inference. | not started |
+| P1-5 | Classifier eval with precision/recall per tier, run against real inference. | **done** &mdash; 20 labelled cases, both tiers measured, results committed |
 | P1-6 | Architecture model large enough that the grant matrix does not fit in a reader's head (~6 capabilities × 10 entities). | not started |
 
 ### P2 — only if the first two tiers are complete
