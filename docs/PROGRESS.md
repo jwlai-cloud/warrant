@@ -1,5 +1,113 @@
 # Progress log
 
+## 2026-09-20 — session 4 (full adversarial review, and fixing what it found)
+
+### What happened
+A ten-dimension review with adversarial verification: 223 agents, ~15.1M tokens,
+71 findings raised, **40 confirmed after three diverse refuters each tried to
+kill them**, 31 refuted. Every finding below was reproduced live by a verifier
+before being accepted. All 40 are now fixed.
+
+Spread: 2 critical, 4 high, 17 medium, 17 low. By dimension, the two that found
+most were `docs-truth` (11 confirmed) and `test-integrity` (7) — the places
+nobody looks. `seam-bypass` found nothing, which is the one result worth being
+pleased about.
+
+### The critical
+**The grant-approval endpoint defaulted to approve.** `approve: bool = True` was
+not in `DecisionIn`, so FastAPI bound it as a *query* parameter. A well-formed
+POST with no query string created a grant, and an `approve: false` sent in the
+body — the natural shape, since `decided_by` and `note` are body fields — was
+silently discarded. On the one endpoint the code itself calls "the only endpoint
+in WARRANT that creates authority", the **absence of an input produced
+authority**.
+
+Nothing caught it because `tests/test_approvals.py` drove `RequestStore.decide()`
+directly and never crossed the HTTP boundary, and the console happens always to
+send the query parameter. The generalisable lesson, now written into
+`tests/test_api_security.py`: **unit tests on the engine do not constrain the
+API.**
+
+### The highs
+- `/v1/demo/reset` was unauthenticated and ungated. It unlinks the audit log,
+  which is *also* the warrant store, so a reset erased every decision ever
+  recorded **and revoked every live warrant**. Takes no body, so a cross-origin
+  form POST reaches it as a CORS simple request. Both demo routes now 404 unless
+  `demo_mode` is on.
+- `caller_agent` was a self-asserted body field, so any client could obtain any
+  agent's warrant — and `verify_warrant` compares against that same self-asserted
+  value, so the callee-side check inherited the trust. `agent_auth` now defaults
+  to `required` and binds identity to a bearer token.
+- `raise_request` accepted any capability/entity pair with forged provenance. A
+  grant request now requires a modelled requester that serves the capability,
+  and **a refusal that is actually in the audit log**. A grant request is a
+  response to a recorded denial, not a way to ask for arbitrary access.
+
+**Config defaults are now the secure ones** (`agent_auth: required`,
+`demo_mode: false`), so a profile that omits them is locked down;
+`config/warrant.yaml` opts out of both explicitly and says so at the top.
+
+### Made the architecture true rather than weakening the doc
+ARCHITECTURE.md described three agents "each running as its own FastAPI service
+on its own port" and **there was no way to start one**. Added
+`warrant serve-agent <id>`, `scripts/run_demo.sh` (whole topology, one command)
+and `scripts/smoke_topology.sh`, which proves the seam across real processes:
+
+```
+1/3 granted call returns rows      : True ['Employee.Roster']   (6 rows on the wire)
+2/3 refused call returns no data   : granted=False
+3/3 warrant reuse by another caller: 403 "issued to 'expense-auditor', not 'vendor-scout'"
+```
+
+Also: the shipped image installed bare `.`, so langgraph was missing and
+`/v1/demo/run` — the console's primary button — raised ImportError in the
+container. P0-10 would have failed on a judge's first click.
+
+### The finding that came from re-running, not re-reading
+**Classification is not deterministic at temperature 0.** Three of twenty eval
+cases return different entity sets across runs. ADR-0009's "still fails" was a
+single sample.
+
+Re-measured: the injection succeeded on both tiers pre-hardening, **once**
+post-hardening, then **0 times in 84 subsequent runs**. Honest claim is neither
+"fixed" nor "still fails" — low, not zero, and structural rather than a prompt
+bug. `evals/run_classify.py --repeat N` now reports stability, and the rule is
+explicit: **a single eval run is not a result.**
+
+### Also fixed
+`Agent.external` was decorative (recorded, checked on the wrong side, changed no
+outcome) — now load-bearing: no external agent reaches a `restricted` entity,
+whichever side of the call it is on. Duplicate model ids silently collapsed, so
+file order decided an agent's capability. Warrant lookup JSON-parsed the whole
+audit log on the event loop. `read_all(limit=0)` returned the *entire* log
+(`lines[-0:]`). Escalation attributed every unresolved claim to every missing
+entity. Offline and live profiles shared one grant store, so running the demo
+once turned the suite red. Two tests replaced because they could not fail:
+`test_unmatched_purpose_fails_closed` passed because the *mock* widens, and the
+serving-agent check was a four-word substring blacklist — now AST-based and
+mutation-tested.
+
+**66 tests passing** (was 39 at the start of the session).
+
+### Next (priority order)
+1. **Hosted demo URL (P0-10)** — blocked on Nebius billing. The console, the
+   container and the topology are all ready; this is one CPU Serverless Endpoint.
+2. **Demo video (P0-11)** — under 3 minutes, hard rule. The console makes it a
+   90-second path: run → refusal → approvals → approve → re-run → 47/47.
+3. **Richer architecture model** (P1-6) — still 3 capabilities × 5 entities.
+4. **H100 benchmark** (P2-3) — dev only; Token Factory serves judging so nothing
+   burns GPU unattended.
+
+### Open questions / blocked on
+- **Nebius billing.** Quota is fine (`msp.cloudapps.gpu.h100` 16, cpu 272;
+  serverless L40S is 0 and raw VMs are excluded by the rules). Resource
+  *creation* is denied, which is a billing/activation gate, not quota.
+- **`strict_narrowing` default.** Currently off, so the demo shows narrowing
+  working. A shipped product would arguably default it on and accept the
+  over-denial. Worth a sentence in the video either way.
+- The H100 preset string is still `TODO(verify)`; no CLI lists presets, so it
+  resolves with `--dry-run` once billing clears.
+
 ## 2026-09-17 — session 3 (reframe: governed multi-agent system)
 
 ### What changed, and why it matters more than anything else this session
