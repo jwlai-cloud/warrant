@@ -15,7 +15,8 @@ class WarrantService:
         self.model: ArchitectureModel = load_model(self.config.model_dir)
         self.router: TierRouter = get_router(self.config)
         self.requests = RequestStore(
-            self.config.audit_path.parent / "grant_requests.jsonl"
+            self.config.audit_path.parent / "grant_requests.jsonl",
+            audit_path=self.config.audit_path,
         )
         # Replay approvals so a grant approved in the console survives a
         # restart. The YAML stays the source of truth for the base model; the

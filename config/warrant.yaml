@@ -38,5 +38,29 @@ fallback:
   fast: deep
   deep: null
 
+# ---- THIS IS THE DEMO PROFILE. It is deliberately open. ----
+#
+# Both controls below default to their SECURE value in code (config.py), so a
+# profile that omits them is locked down. This file turns them off on purpose,
+# because the whole point of it is a URL a judge can open and press buttons on.
+#
+#   agent_auth: disabled -> POST /v1/warrant trusts `caller_agent` from the
+#                           request body. Any client can therefore request a
+#                           warrant AS any agent. Set to `required` and fill in
+#                           agent_tokens below for anything that is not a demo.
+#   demo_mode:  true     -> registers /v1/demo/run and /v1/demo/reset. Reset
+#                           DELETES the audit log and the approvals store, and
+#                           the audit log is also the warrant store, so reset
+#                           revokes every live warrant. It is unauthenticated.
+#
+# A real deployment deletes these two lines (inheriting the secure defaults) and
+# populates agent_tokens:
+#
+#   agent_tokens:
+#     "${WARRANT_AUDITOR_TOKEN}": expense-auditor
+#
+agent_auth: disabled
+demo_mode: true
+
 model_dir: config/model
 audit_path: ${WARRANT_AUDIT_PATH}

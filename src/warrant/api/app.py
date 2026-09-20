@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -51,6 +51,42 @@ async def console():
     return FileResponse(_STATIC / "index.html")
 
 
+def _demo_guard() -> JSONResponse | None:
+    """404 rather than 403 when demo routes are off, so they are invisible
+    outside a demo deployment. /v1/demo/reset deletes the audit log - which is
+    also the warrant store - so it must not exist in a real one."""
+    assert _svc is not None
+    if not _svc.config.demo_mode:
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    return None
+
+
+def _resolve_caller(claimed: str, authorization: str | None) -> str | JSONResponse:
+    """Bind the caller's identity to the transport, not the request body.
+
+    With `agent_auth: disabled` the caller_agent field is taken on trust, which
+    means any client can request a warrant AS any agent - and the callee-side
+    check in agents/base.py compares against that same self-asserted value, so
+    it inherits the same trust. Demo profiles opt into that explicitly; the
+    code default is `required`.
+    """
+    assert _svc is not None
+    if _svc.config.agent_auth == "disabled":
+        return claimed
+    token = ""
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    agent = _svc.config.agent_tokens.get(token) if token else None
+    if agent is None:
+        return JSONResponse(status_code=401,
+                            content={"error": "agent bearer token required"})
+    if claimed and claimed != agent:
+        return JSONResponse(
+            status_code=403,
+            content={"error": f"token identifies '{agent}', not '{claimed}'"})
+    return agent
+
+
 class WarrantIn(BaseModel):
     caller_agent: str
     callee_agent: str
@@ -59,9 +95,14 @@ class WarrantIn(BaseModel):
 
 
 @app.post("/v1/warrant")
-async def request_warrant(body: WarrantIn):
+async def request_warrant(body: WarrantIn, authorization: str | None = Header(None)):
     assert _svc is not None
-    d = await _svc.evaluate(WarrantRequest(**body.model_dump()))
+    caller = _resolve_caller(body.caller_agent, authorization)
+    if isinstance(caller, JSONResponse):
+        return caller
+    req = body.model_dump()
+    req["caller_agent"] = caller
+    d = await _svc.evaluate(WarrantRequest(**req))
     return JSONResponse(
         status_code=200 if d.granted else 403,
         content={
@@ -107,6 +148,13 @@ class GrantRequestIn(BaseModel):
 
 class DecisionIn(BaseModel):
     decided_by: str          # the org unit claiming to steward the entity
+    # REQUIRED, and deliberately has no default. It used to be a bare `approve:
+    # bool = True` in the signature, which FastAPI bound as a QUERY parameter -
+    # so a well-formed body with no query string created a grant, and an
+    # `approve: false` sent in the body was silently discarded in favour of the
+    # query default. On the one endpoint in the system that creates authority,
+    # the absence of an input produced authority. A missing value is now a 422.
+    approve: bool
     note: str = ""
 
 
@@ -128,8 +176,7 @@ async def raise_grant_request(body: GrantRequestIn):
 
 
 @app.post("/v1/grant-requests/{request_id}/decision")
-async def decide_grant_request(request_id: str, body: DecisionIn,
-                               approve: bool = True):
+async def decide_grant_request(request_id: str, body: DecisionIn):
     """The only endpoint in WARRANT that creates authority.
 
     The steward check is modelled, not authenticated: it verifies the claimed
@@ -138,7 +185,7 @@ async def decide_grant_request(request_id: str, body: DecisionIn,
     """
     assert _svc is not None
     try:
-        r = _svc.requests.decide(_svc.model, request_id, approve=approve,
+        r = _svc.requests.decide(_svc.model, request_id, approve=body.approve,
                                  decided_by=body.decided_by, note=body.note)
     except PermissionError as exc:
         return JSONResponse(status_code=403, content={"error": str(exc)})
@@ -151,12 +198,16 @@ async def decide_grant_request(request_id: str, body: DecisionIn,
 async def demo_run():
     """Run the Expense Auditor against the live plane and return its state.
 
+    Registered only when demo_mode is on; see _demo_guard.
+
     The real LangGraph graph, the real deterministic decisions, the real replan.
     The only thing stubbed is the transport: `call_fn` reaches the plane
     in-process rather than over HTTP, so the console demo does not require the
     three agent services to be running. `governed_call` covers the HTTP path and
     tests/test_no_bypass.py covers the seam.
     """
+    if (blocked := _demo_guard()) is not None:
+        return blocked
     assert _svc is not None
     from ..agents.auditor import build_graph
     from ..agents.base import GovernedResult
@@ -211,7 +262,15 @@ async def demo_reset():
     grants Employee.Compensation the refusal stops happening, which is the whole
     point - but it also means the demo only works once per deployment without
     this. A judge gets to replay it; so does the video.
+
+    Gated on demo_mode because it DELETES the audit log, and the audit log is
+    also the warrant store that callees verify against - so a reset revokes
+    every live warrant as well as erasing the evidence of every decision ever
+    made. It takes no body and no content-type, so a cross-origin form POST
+    reaches it as a CORS simple request with no preflight.
     """
+    if (blocked := _demo_guard()) is not None:
+        return blocked
     assert _svc is not None
     for f in (_svc.config.audit_path,
               _svc.config.audit_path.parent / "grant_requests.jsonl"):

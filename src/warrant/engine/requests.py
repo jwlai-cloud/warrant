@@ -49,8 +49,31 @@ class RequestStore:
     """Append-only, like the audit log. The file is the log of every state
     change; the current state of a request is its last entry."""
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, audit_path: str | Path | None = None):
         self.path = Path(path)
+        # Used to check that a request corresponds to a refusal that actually
+        # happened. Without it, `requested_by`, `reason` and `blocking` are
+        # attacker-chosen strings that the console then renders to the steward
+        # as the factual basis for approving.
+        self.audit_path = Path(audit_path) if audit_path else None
+
+    def _was_refused(self, capability: str, data_entity: str) -> bool:
+        if self.audit_path is None or not self.audit_path.exists():
+            return False
+        for line in self.audit_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if e.get("granted"):
+                continue
+            for m in e.get("missing_grants", []):
+                if (m.get("capability") == capability
+                        and m.get("data_entity") == data_entity):
+                    return True
+        return False
 
     def _append(self, r: GrantRequest) -> GrantRequest:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,6 +117,24 @@ class RequestStore:
             raise ValueError(f"unknown data entity '{data_entity}'")
         if model.has_grant(capability, data_entity):
             raise ValueError("that grant already exists")
+
+        # The requester must be a modelled agent that actually serves the
+        # capability it is asking for. Otherwise any caller can raise a request
+        # in a legitimate agent's name, for a capability it has nothing to do
+        # with, and the steward approves on that forged provenance.
+        agent = model.agents.get(requested_by)
+        if agent is None:
+            raise ValueError(f"'{requested_by}' is not an agent in the model")
+        if agent.serves != capability:
+            raise ValueError(
+                f"'{requested_by}' serves '{agent.serves}', not '{capability}'")
+
+        # And the refusal must have actually happened. A grant request is a
+        # response to a recorded denial, not a way to ask for arbitrary access.
+        if not self._was_refused(capability, data_entity):
+            raise ValueError(
+                f"no recorded refusal of {capability} -> {data_entity}; a grant "
+                f"request must follow a denial that is in the audit log")
         for r in self.all():
             if (r.state == "pending" and r.capability == capability
                     and r.data_entity == data_entity):

@@ -4,5 +4,10 @@ tiers:
   fast: { kind: mock, model: mock-nano }
   deep: { kind: mock, model: mock-super }
 fallback: { fast: deep, deep: null }
+# This profile is for tests, CI and offline development, so both controls are
+# switched off deliberately. Anything hosted must not use this file.
+agent_auth: disabled
+demo_mode: true
+
 model_dir: config/model
 audit_path: audit/warrant.jsonl

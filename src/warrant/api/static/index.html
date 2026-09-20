@@ -543,9 +543,9 @@
   }
 
   async function decide(r, steward, approve, note) {
-    var res = await api("/v1/grant-requests/" + r.id + "/decision?approve=" + (approve ? "true" : "false"), {
+    var res = await api("/v1/grant-requests/" + r.id + "/decision", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decided_by: steward.id, note: note || "" })
+      body: JSON.stringify({ decided_by: steward.id, approve: approve, note: note || "" })
     });
     var b = $("apBanner"); b.hidden = false;
     if (!res.ok) {
