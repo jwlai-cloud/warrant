@@ -38,9 +38,35 @@ def record(path: str | Path, d: WarrantDecision) -> dict:
     return entry
 
 
+def find(path: str | Path, warrant_id: str) -> dict | None:
+    """Look one record up without parsing the rest of the log.
+
+    Called on every callee-side verification, so it scans newest-first and only
+    parses a line whose raw text contains the id at all. Reading the whole file
+    is still O(n) - this is a log, not an index - but it stops the common case
+    JSON-decoding thousands of records to find one."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    needle = f'"id": "{warrant_id}"'
+    for line in reversed(p.read_text(encoding="utf-8").splitlines()):
+        if needle not in line:
+            continue
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if e.get("id") == warrant_id:
+            return e
+    return None
+
+
 def read_all(path: str | Path, limit: int = 100) -> list[dict]:
     p = Path(path)
     if not p.exists():
         return []
     lines = p.read_text(encoding="utf-8").strip().splitlines()
-    return [json.loads(ln) for ln in lines[-limit:]][::-1]
+    # `lines[-0:]` is the whole list, so a limit of 0 or a negative one used to
+    # return everything - the opposite of what a bound means.
+    limit = max(0, limit)
+    return [json.loads(ln) for ln in (lines[-limit:] if limit else [])][::-1]

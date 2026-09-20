@@ -20,8 +20,13 @@ DENIED_PURPOSE = "verify allowance claims against employee compensation bands"
 
 
 @pytest.fixture
-def svc():
-    return WarrantService(load_config("config/warrant.offline.yaml"))
+def svc(tmp_path):
+    # tmp_path, not the profile's own path: these tests used to read a
+    # gitignored runtime file, so running the demo once and approving a grant
+    # made the suite fail.
+    cfg = load_config("config/warrant.offline.yaml")
+    cfg.audit_path = tmp_path / "warrant.jsonl"
+    return WarrantService(cfg)
 
 
 async def test_narrow_purpose_is_granted(svc):

@@ -129,6 +129,23 @@ def decide(
             continue
         steward = model.org_units[entity.owner_org]
         grant = model.has_grant(cap.id, entity_id)
+
+        # `external` used to be recorded and never acted on: it was checked on
+        # the callee, after the loop, and changed no outcome. An agent outside
+        # the organisation cannot reach a restricted entity on the strength of
+        # an internal grant, whichever side of the call it is on.
+        if (caller.external or callee.external) and entity.classification == "restricted":
+            missing.append((cap.id, entity_id))
+            outside = caller.name if caller.external else callee.name
+            reasons.append(Reason(
+                "external_restricted",
+                f"'{outside}' is external to the organisation and "
+                f"'{entity.id}' is classified restricted, stewarded by "
+                f"{steward.name}. No grant permits an external agent to reach "
+                f"restricted data.",
+            ))
+            continue
+
         if grant:
             reasons.append(Reason(
                 "grant_found",
@@ -144,13 +161,6 @@ def decide(
                 f"stewarded by {steward.name}. Capability '{cap.name}' holds no "
                 f"grant to that entity.",
             ))
-
-    if callee.external:
-        reasons.append(Reason(
-            "external_callee",
-            f"Callee '{callee.name}' is external to the organisation; "
-            f"grants are evaluated strictly.",
-        ))
 
     return WarrantDecision(
         id=did,

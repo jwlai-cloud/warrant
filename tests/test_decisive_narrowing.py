@@ -26,8 +26,10 @@ DROPS_COMPENSATION = "which staff travelled in Q3, from the roster"
 
 
 @pytest.fixture
-def cfg():
-    return load_config("config/warrant.offline.yaml")
+def cfg(tmp_path):
+    c = load_config("config/warrant.offline.yaml")
+    c.audit_path = tmp_path / "warrant.jsonl"   # no shared runtime state
+    return c
 
 
 async def test_decisive_exclusion_is_recorded(cfg):
@@ -60,3 +62,26 @@ async def test_no_exclusion_means_no_flag(cfg):
         WarrantRequest("expense-auditor", "inventory-reconciler",
                        purpose="zzz unclassifiable"))
     assert d.decisive_exclusions == []
+
+
+async def test_decisive_is_computed_from_the_CALLER_capability(cfg):
+    """expense-management holds Employee.Roster; inventory-control does not.
+
+    The same dropped entity is therefore decisive for one caller and not the
+    other. Both previous tests used expense-auditor against roster-planner,
+    where the two capabilities happened to agree - so an implementation that
+    read callee.serves instead of caller.serves passed them both.
+    """
+    svc = WarrantService(cfg)
+    # vendor-scout serves inventory-control, which has no Employee.* grant.
+    d = await svc.evaluate(WarrantRequest(
+        "vendor-scout", "roster-planner", purpose=DROPS_COMPENSATION))
+    # Compensation was dropped by the classifier; for THIS caller the surviving
+    # Employee.Roster is itself ungranted, so the call denies regardless.
+    assert d.granted is False
+    assert "Employee.Compensation" in d.decisive_exclusions
+
+    d2 = await svc.evaluate(WarrantRequest(
+        "expense-auditor", "roster-planner", purpose=DROPS_COMPENSATION))
+    assert d2.granted is True      # expense-management DOES hold Roster
+    assert d2.decisive_exclusions == ["Employee.Compensation"]

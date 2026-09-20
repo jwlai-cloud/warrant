@@ -71,13 +71,37 @@ def test_business_agents_do_not_speak_http():
 
 def test_serving_agents_only_ever_talk_to_the_plane():
     """serving.py legitimately speaks HTTP - to verify a warrant. It must not
-    also be able to call a peer, or a callee could chain onward ungoverned."""
-    src = (AGENTS_DIR / "serving.py").read_text(encoding="utf-8")
-    assert "plane_url" in src
-    for forbidden in ("callee_url", "governed_call", "AGENT_URLS", "peer_url"):
-        assert forbidden not in src, (
-            f"serving.py references {forbidden}; a serving agent must only "
-            f"reach the authorization plane, never another agent"
+    also be able to call a peer, or a callee could chain onward ungoverned.
+
+    Checked by parsing the outbound calls, not by blacklisting four names: a
+    substring scan passes the moment someone calls the variable something else.
+    """
+    import ast
+    tree = ast.parse((AGENTS_DIR / "serving.py").read_text(encoding="utf-8"))
+
+    def _mentions_plane(node) -> bool:
+        return any(isinstance(n, ast.Name) and n.id == "plane_url"
+                   for n in ast.walk(node))
+
+    # Only calls on the httpx client. `app.get("/whoami")` is a route
+    # decorator, not an outbound request, and must not be swept in.
+    HTTP_VERBS = {"get", "post", "put", "patch", "delete", "request", "send"}
+    outbound = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr in HTTP_VERBS
+        and isinstance(n.func.value, ast.Name)
+        and n.func.value.id == "client"
+    ]
+
+    assert outbound, "no outbound HTTP calls found - has serving.py changed shape?"
+    for call in outbound:
+        target = call.args[0] if call.args else None
+        assert target is not None and _mentions_plane(target), (
+            f"serving.py line {call.lineno}: outbound call whose URL is not "
+            f"derived from plane_url. A serving agent must only reach the "
+            f"authorization plane, never another agent."
         )
 
 

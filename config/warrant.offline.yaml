@@ -10,4 +10,7 @@ agent_auth: disabled
 demo_mode: true
 
 model_dir: config/model
-audit_path: audit/warrant.jsonl
+# Its own store. Sharing audit/warrant.jsonl with the live profile meant that
+# running the demo once and approving a grant turned the test suite red: the
+# approval was replayed into the model the offline tests authorize against.
+audit_path: audit/offline/warrant.jsonl

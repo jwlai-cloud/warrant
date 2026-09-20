@@ -25,14 +25,32 @@ def load_model(model_dir: str | Path) -> ArchitectureModel:
                        for e in _read(d, "data_entities.yaml", "data_entities")}
     m.agents = {a["id"]: Agent(**a) for a in _read(d, "agents.yaml", "agents")}
     m.grants = [Grant(**g) for g in _read(d, "grants.yaml", "grants")]
-    _validate(m)
+    _validate(m, d)
     return m
 
 
-def _validate(m: ArchitectureModel) -> None:
+def _check_duplicate_ids(d: Path, problems: list[str]) -> None:
+    """A repeated id silently collapsed into the last one wins, so file order
+    decided which capability an agent served. In an authorization model that is
+    a security bug, not a warning."""
+    for name, key in (("org.yaml", "org_units"),
+                      ("capabilities.yaml", "capabilities"),
+                      ("data_entities.yaml", "data_entities"),
+                      ("agents.yaml", "agents")):
+        seen: set[str] = set()
+        for row in _read(d, name, key):
+            rid = row.get("id")
+            if rid in seen:
+                problems.append(f"{name}: duplicate id {rid!r}")
+            seen.add(rid)
+
+
+def _validate(m: ArchitectureModel, d: Path | None = None) -> None:
     """Fail loudly on a malformed model - a silent dangling reference in an
     authorization model is a security bug, not a warning."""
     problems: list[str] = []
+    if d is not None:
+        _check_duplicate_ids(d, problems)
     for c in m.capabilities.values():
         if c.owner_org not in m.org_units:
             problems.append(f"capability {c.id}: unknown owner_org {c.owner_org}")

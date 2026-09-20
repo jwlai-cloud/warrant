@@ -20,7 +20,7 @@ from pathlib import Path
 from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..engine import WarrantRequest, audit
 from ..model import load_model
@@ -88,10 +88,13 @@ def _resolve_caller(claimed: str, authorization: str | None) -> str | JSONRespon
 
 
 class WarrantIn(BaseModel):
-    caller_agent: str
-    callee_agent: str
-    purpose: str = ""
-    payload: str = ""
+    # Bounded where they enter, not in the prompt builder - the same values also
+    # reach the audit line and the justification prompt, and only `payload` was
+    # ever truncated.
+    caller_agent: str = Field(min_length=1, max_length=128)
+    callee_agent: str = Field(min_length=1, max_length=128)
+    purpose: str = Field("", max_length=2000)
+    payload: str = Field("", max_length=8000)
 
 
 @app.post("/v1/warrant")
@@ -126,24 +129,30 @@ async def request_warrant(body: WarrantIn, authorization: str | None = Header(No
 
 
 @app.get("/v1/warrant/{warrant_id}")
-async def get_warrant(warrant_id: str):
+def get_warrant(warrant_id: str):
     """Look one warrant up. This is what a callee calls to verify that the
     warrant a caller presented is real, current, and actually covers the data
     it is about to hand over. Without it, `governed_call` is honour-system:
-    a caller could skip asking and the boundary would enforce nothing."""
+    a caller could skip asking and the boundary would enforce nothing.
+
+    Deliberately a plain `def`: it does blocking file I/O, and every callee
+    verification calls it, so on the event loop it would stall every other
+    request. FastAPI runs sync handlers in a threadpool.
+    """
     assert _svc is not None
-    for e in audit.read_all(_svc.config.audit_path, limit=10_000):
-        if e["id"] == warrant_id:
-            return e
+    e = audit.find(_svc.config.audit_path, warrant_id)
+    if e is not None:
+        return e
     return JSONResponse(status_code=404, content={"error": "unknown warrant"})
 
 
 class GrantRequestIn(BaseModel):
-    capability: str
-    data_entity: str
-    requested_by: str
-    reason: str = ""
-    blocking: int = 0
+    capability: str = Field(min_length=1, max_length=128)
+    data_entity: str = Field(min_length=1, max_length=128)
+    requested_by: str = Field(min_length=1, max_length=128)
+    # Rendered to a steward as the basis for approving, so bounded.
+    reason: str = Field("", max_length=2000)
+    blocking: int = Field(0, ge=0, le=100_000)
 
 
 class DecisionIn(BaseModel):

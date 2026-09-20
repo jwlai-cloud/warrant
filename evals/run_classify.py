@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import statistics
 import sys
 import time
@@ -65,8 +66,12 @@ async def _one(router, model, case, tier):
         "extra": sorted(got - expected),       # usability-relevant
         "exact": got == expected,
         "narrowed": got != declared,
-        "tier": used_tier or tier,
+        # Verbatim, never `used_tier or tier`: classify_entities returns "" when
+        # it failed and fell back to the full declared set. Substituting the
+        # requested tier made the JSON claim a tier that never answered.
+        "tier": used_tier,
         "provider": kind,
+        "errored": not used_tier,
         "ms": round(ms, 1),
     }
 
@@ -98,6 +103,12 @@ async def main() -> int:
     await router.aclose()
 
     n = len(rows)
+    errored = [r for r in rows if r["errored"]]
+    if errored:
+        print(f"\n  !! {len(errored)}/{n} classification calls FAILED and fell back "
+              f"to the full declared set.")
+        print("     Fail-closed widening scores perfect recall, so the numbers "
+              "below would flatter a dead tier.")
     tp = sum(len(set(r["expected"]) & set(r["got"])) for r in rows)
     fn = sum(len(r["missed"]) for r in rows)
     fp = sum(len(r["extra"]) for r in rows)
@@ -111,8 +122,10 @@ async def main() -> int:
     print(f"  exact set  {sum(r['exact'] for r in rows) / n:>6.1%}")
     print(f"  narrowing  {sum(r['narrowed'] for r in rows) / n:>6.1%}   "
           f"<- 0% means it always returns everything and is doing nothing")
-    print(f"  latency    p50 {statistics.median(lat):.0f}ms   "
-          f"p95 {lat[int(len(lat) * 0.95) - 1]:.0f}ms")
+    # ceil-based index; the old `int(len*0.95) - 1` was one rank low for every
+    # case count except the 20 that happened to be committed.
+    p95 = lat[min(len(lat) - 1, math.ceil(len(lat) * 0.95) - 1)]
+    print(f"  latency    p50 {statistics.median(lat):.0f}ms   p95 {p95:.0f}ms")
     print("=" * 66)
 
     unsafe = [r for r in rows if r["missed"]]
@@ -130,6 +143,9 @@ async def main() -> int:
              "p50_ms": statistics.median(lat), "rows": rows}, indent=1))
         print(f"\n  wrote {args.json}")
 
+    if errored:
+        print(f"\n  FAILED: {len(errored)} of {n} calls never reached a model.")
+        return 2
     return 1 if unsafe else 0
 
 
