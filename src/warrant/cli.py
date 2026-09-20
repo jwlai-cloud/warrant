@@ -68,9 +68,40 @@ def validate():
 
 @app.command()
 def serve(host: str = "0.0.0.0", port: int = 8000):
-    """Run the HTTP API."""
+    """Run the authorization plane and the console."""
     import uvicorn
     uvicorn.run("warrant.api.app:app", host=host, port=port)
+
+
+# The ports ARCHITECTURE.md names. Keeping them in one place so the doc and the
+# code cannot drift apart again.
+AGENT_PORTS = {"inventory-reconciler": 8102, "roster-planner": 8103}
+
+
+@app.command("serve-agent")
+def serve_agent(
+    agent_id: str = typer.Argument(..., help="inventory-reconciler | roster-planner"),
+    port: int = typer.Option(0, help="defaults to this agent's documented port"),
+    plane: str = typer.Option("http://127.0.0.1:8000", help="authorization plane"),
+    host: str = "0.0.0.0",
+):
+    """Run one serving agent as its own service.
+
+    ARCHITECTURE.md described these as separate services on their own ports and
+    there was no way to start them - the console ran the graph in-process
+    instead. This is the missing entrypoint, so the described topology is the
+    one you can actually run.
+    """
+    import uvicorn
+
+    from .agents.serving import make_serving_agent
+
+    if agent_id not in AGENT_PORTS:
+        console.print(f"[red]unknown serving agent '{agent_id}'[/red] - "
+                      f"expected one of {', '.join(sorted(AGENT_PORTS))}")
+        raise typer.Exit(2)
+    uvicorn.run(make_serving_agent(agent_id, plane),
+                host=host, port=port or AGENT_PORTS[agent_id])
 
 
 if __name__ == "__main__":

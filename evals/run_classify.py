@@ -81,6 +81,11 @@ async def main() -> int:
     ap.add_argument("--tier", default="fast")
     ap.add_argument("--config", default=None)
     ap.add_argument("--json", default=None, help="write full results here")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run every case N times. Classification is NOT "
+                         "deterministic at temperature 0 - the same input has "
+                         "produced different entity sets across runs - so a "
+                         "single pass cannot support a quoted number.")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -92,14 +97,23 @@ async def main() -> int:
     print(f"tier={args.tier} kind={tcfg.kind} model={tcfg.model}  ({len(cases)} cases)\n")
 
     rows = []
+    unstable: dict[str, set[str]] = {}
     for c in cases:
-        r = await _one(router, model, c, args.tier)
-        rows.append(r)
-        flag = "  " if r["exact"] else ("!!" if r["missed"] else " ~")
-        print(f"{flag} {r['id']:<28} got={','.join(r['got']) or '-':<45} "
-              f"{r['ms']:>7.0f}ms")
-        if r["missed"]:
-            print(f"     MISSED {','.join(r['missed'])}  <- would be granted, not refused")
+        seen: set[str] = set()
+        for attempt in range(args.repeat):
+            r = await _one(router, model, c, args.tier)
+            rows.append(r)
+            seen.add(",".join(r["got"]))
+            if attempt == 0:
+                flag = "  " if r["exact"] else ("!!" if r["missed"] else " ~")
+                print(f"{flag} {r['id']:<28} got={','.join(r['got']) or '-':<45} "
+                      f"{r['ms']:>7.0f}ms")
+            if r["missed"]:
+                print(f"     MISSED {','.join(r['missed'])}  "
+                      f"<- would be granted, not refused"
+                      + (f"  (run {attempt + 1}/{args.repeat})" if args.repeat > 1 else ""))
+        if len(seen) > 1:
+            unstable[c["id"]] = seen
     await router.aclose()
 
     n = len(rows)
@@ -128,11 +142,22 @@ async def main() -> int:
     print(f"  latency    p50 {statistics.median(lat):.0f}ms   p95 {p95:.0f}ms")
     print("=" * 66)
 
+    if args.repeat > 1:
+        print(f"\n  stability over {args.repeat} runs per case: "
+              f"{len(cases) - len(unstable)}/{len(cases)} cases gave the same "
+              f"answer every time")
+        for cid, variants in unstable.items():
+            print(f"    ~ {cid}: {len(variants)} different answers")
+
     unsafe = [r for r in rows if r["missed"]]
     if unsafe:
-        print(f"\n  {len(unsafe)} case(s) would have granted a call that should be refused:")
-        for r in unsafe:
-            print(f"    - {r['id']}: missed {','.join(r['missed'])}")
+        from collections import Counter
+        by_case = Counter(r["id"] for r in unsafe)
+        print(f"\n  {len(unsafe)} run(s) would have granted a call that should "
+              f"be refused:")
+        for cid, n in by_case.most_common():
+            rate = f"{n}/{args.repeat}" if args.repeat > 1 else ""
+            print(f"    - {cid} {rate}")
 
     if args.json:
         Path(args.json).write_text(json.dumps(
@@ -140,7 +165,9 @@ async def main() -> int:
              "recall": recall, "precision": precision,
              "exact": sum(r["exact"] for r in rows) / n,
              "narrowing": sum(r["narrowed"] for r in rows) / n,
-             "p50_ms": statistics.median(lat), "rows": rows}, indent=1))
+             "p50_ms": statistics.median(lat), "repeat": args.repeat,
+             "unstable_cases": {k: sorted(v) for k, v in unstable.items()},
+             "rows": rows}, indent=1))
         print(f"\n  wrote {args.json}")
 
     if errored:

@@ -65,7 +65,14 @@ async def classify_entities(
     try:
         c = await router.complete(tier, _SYSTEM, user, json_schema=_SCHEMA)
         parsed = json.loads(c.text)
-        narrowed = [e for e in parsed.get("data_entities", []) if e in declared]
+        # Dedupe and preserve the declared order. A repeated entity used to
+        # multiply through entities_touched, the audit record and the prompt,
+        # and the list was unbounded by anything but the declared set.
+        returned = parsed.get("data_entities", [])
+        if not isinstance(returned, list):
+            raise ValueError("data_entities is not a list")
+        chosen = {e for e in returned if isinstance(e, str)}
+        narrowed = [e for e in declared if e in chosen]
         return (narrowed or declared), c.tier, c.provider_kind, c.latency_ms
     except Exception:
         # Fail closed - assume the call touches everything the callee can read.

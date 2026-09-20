@@ -91,3 +91,30 @@ async def test_granting_the_request_closes_everything():
     assert s["unresolved"] == []
     assert len(s["closed"]) == 47
     assert "47 of 47" in s["report"]
+
+
+async def test_the_supplier_ceiling_can_actually_reject():
+    """Every fixture claim passes the tolerance check, so the branch would be
+    vacuous and "41 of 47" would be a count of supplier claims rather than a
+    count that survived scrutiny. This proves the check has teeth."""
+    from warrant.agents.auditor import _reconcile
+    contracts = [{"supplier_id": "SUP-014", "supplier": "N",
+                  "agreed_day_rate": 100.0, "tolerance_pct": 10}]
+    claims = [
+        {"id": "OK", "type": "supplier", "supplier_id": "SUP-014", "amount": 440.0},
+        {"id": "OVER", "type": "supplier", "supplier_id": "SUP-014", "amount": 441.0},
+    ]
+    closed = _reconcile(claims, {"Supplier.Contract": contracts})
+    assert closed == ["OK"], f"ceiling did not reject the over-tolerance claim: {closed}"
+
+
+async def test_a_corrupt_approvals_line_does_not_stop_startup(tmp_path):
+    """One unreadable record used to raise out of all(), and approved_grants()
+    runs during startup - so a single bad line stopped the whole plane."""
+    from warrant.engine.requests import RequestStore
+    f = tmp_path / "gr.jsonl"
+    f.write_text('{"not": "a request"}\nnot json at all\n')
+    store = RequestStore(f)
+    assert store.all() == []
+    assert store.approved_grants() == []
+    assert len(store.corrupt) == 2, "corrupt records must be surfaced, not silent"

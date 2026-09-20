@@ -70,6 +70,23 @@ class Refusal:
     justification: str = ""
 
 
+def _blocked_by(claims: list[dict], gathered: dict[str, Any]) -> dict[str, list[str]]:
+    """Which entity each unclosed claim is actually waiting on.
+
+    The escalate branch used to size every request by the TOTAL unresolved
+    count, so two missing entities each claimed to block all of them and the
+    steward saw an inflated number as the basis for approving.
+    """
+    out: dict[str, list[str]] = {}
+    if "Supplier.Contract" not in gathered:
+        out["Supplier.Contract"] = [c["id"] for c in claims
+                                    if c["type"] == "supplier"]
+    if "Employee.Compensation" not in gathered:
+        out["Employee.Compensation"] = [c["id"] for c in claims
+                                        if c["type"] == "allowance"]
+    return {k: v for k, v in out.items() if v}
+
+
 def _reconcile(claims: list[dict], gathered: dict[str, Any]) -> list[str]:
     """Close every claim the data in hand can actually verify.
 
@@ -88,6 +105,10 @@ def _reconcile(claims: list[dict], gathered: dict[str, Any]) -> list[str]:
             if contract is None:
                 continue
             ceiling = contract["agreed_day_rate"] * (1 + contract["tolerance_pct"] / 100)
+            # Real check, and every fixture claim happens to pass it - so the
+            # 41 in "41 of 47" is the count of supplier claims, not a count of
+            # claims that survived scrutiny. tests/test_auditor_replan.py has a
+            # case with an out-of-tolerance amount so the branch is not vacuous.
             if c["amount"] <= ceiling * 4:      # up to a 4-day engagement
                 closed.append(c["id"])
         elif c["type"] == "allowance":
@@ -149,15 +170,22 @@ def build_graph(call_fn) -> Any:
         }
 
         # --- escalate: a request addressed to someone who can act on it ---
+        blocked_by = _blocked_by(state["claims"], state.get("gathered", {}))
         requests = []
+        seen: set[tuple[str, str]] = set()
         for ref in state["refusals"]:
             for m in ref["missing"]:
+                key = (m["capability"], m["data_entity"])
+                if key in seen:
+                    continue      # two refusals naming the same entity is one ask
+                seen.add(key)
+                n = len(blocked_by.get(m["data_entity"], []))
                 requests.append({
                     "capability": m["capability"],
                     "data_entity": m["data_entity"],
-                    "blocking": len(unresolved),
+                    "blocking": n,
                     "reason": (
-                        f"Close {len(unresolved)} Q3 claims that cannot be "
+                        f"Close {n} Q3 claims that cannot be "
                         f"verified without {m['data_entity']}."
                     ),
                     "asked_for_by": AGENT_ID,

@@ -56,6 +56,9 @@ class RequestStore:
         # attacker-chosen strings that the console then renders to the steward
         # as the factual basis for approving.
         self.audit_path = Path(audit_path) if audit_path else None
+        # Records that could not be parsed. Surfaced rather than swallowed - a
+        # corrupt approvals log is an operational problem someone must see.
+        self.corrupt: list[str] = []
 
     def _was_refused(self, capability: str, data_entity: str) -> bool:
         if self.audit_path is None or not self.audit_path.exists():
@@ -84,11 +87,23 @@ class RequestStore:
     def all(self) -> list[GrantRequest]:
         if not self.path.exists():
             return []
+        # Reset: all() re-reads the file each time and approved_grants() calls
+        # it again, so accumulating would double-count every corrupt record.
+        self.corrupt = []
         latest: dict[str, GrantRequest] = {}
         for line in self.path.read_text(encoding="utf-8").strip().splitlines():
             if not line:
                 continue
-            r = GrantRequest(**json.loads(line))
+            # A single corrupt line used to raise out of here, and because
+            # approved_grants() is called during startup that meant one bad
+            # record stopped the whole plane rather than losing one request.
+            # Skipping is the fail-closed choice: an unreadable record grants
+            # nothing.
+            try:
+                r = GrantRequest(**json.loads(line))
+            except (json.JSONDecodeError, TypeError) as exc:
+                self.corrupt.append(f"{line[:80]}... ({exc})")
+                continue
             latest[r.id] = r
         return sorted(latest.values(), key=lambda r: r.raised_at, reverse=True)
 

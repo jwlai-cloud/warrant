@@ -1,5 +1,11 @@
-"""Append-only audit log. Every decision is recorded, granted or not -
-the refusals are the point."""
+"""Append-only audit log. Every decision is recorded, granted or not - the
+refusals are the point.
+
+"Append-only" means no code path rewrites an existing record. It does NOT mean
+the file is immutable: POST /v1/demo/reset unlinks it, which is why that route
+is gated behind `demo_mode` and 404s otherwise. This file is also the warrant
+store that callees verify against, so deleting it revokes every live warrant as
+well as erasing the evidence."""
 from __future__ import annotations
 
 import json

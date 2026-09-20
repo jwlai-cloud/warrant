@@ -18,7 +18,15 @@ from .base import ChatProvider, Completion, ProviderUnavailable
 class OpenAICompatProvider(ChatProvider):
     def __init__(self, tier_name: str, cfg: TierConfig):
         if not cfg.base_url:
-            raise ValueError(f"tier '{tier_name}' ({cfg.kind}) has no base_url set")
+            # Deliberately fatal rather than falling back to a stub: a tier that
+            # silently answers without a model would make every decision look
+            # served while nothing classified anything.
+            raise ValueError(
+                f"tier '{tier_name}' ({cfg.kind}) has no base_url. Set "
+                f"WARRANT_TF_BASE_URL and WARRANT_TF_API_KEY, or run with "
+                f"WARRANT_CONFIG=config/warrant.offline.yaml for the no-network "
+                f"profile."
+            )
         self.tier_name = tier_name
         self.kind = cfg.kind
         self.model = cfg.model

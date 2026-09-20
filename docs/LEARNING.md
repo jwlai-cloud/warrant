@@ -78,7 +78,14 @@ itself. This shaped the whole tier/fallback design.
 
 ---
 
-## NVIDIA OpenShell (planned)
+## NVIDIA OpenShell — investigated, then dropped
+
+> **Not part of the product.** Cut in September 2026: ServiceNow AI Control
+> Tower already occupies the "decides above OpenShell" position (May 2026), and
+> enforcement was not reachable in the remaining time. Kept here because the
+> reading was useful and the distinction between a PEP and a PDP is worth
+> remembering. See `docs/PRD.md` §5.
+ (planned)
 
 **What it actually does:** an Apache-2.0, Rust runtime that executes agents in
 sandboxes with kernel-level isolation across four layers — filesystem

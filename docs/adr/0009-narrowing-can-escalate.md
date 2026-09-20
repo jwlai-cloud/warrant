@@ -94,3 +94,39 @@ measure it, record it, and give the operator a switch.
   is more useful to a reader than a guarantee we cannot keep.
 - `evals/results-*.json` are committed so the numbers in the docs can be checked
   rather than taken on trust.
+
+## Addendum, 2026-09-20 — how often, measured properly
+
+The figures above came from single passes, and classification turns out not to
+be deterministic at temperature 0: repeating the suite three times shows **3 of
+20 cases returning different entity sets across runs**. A single pass therefore
+cannot support a quoted number, and `evals/run_classify.py --repeat N` now
+reports stability alongside the metrics.
+
+Re-measured after the hardened prompt shipped:
+
+| | observed |
+|---|---|
+| `adversarial-explicit-denial` succeeding, pre-hardening | fast **and** deep, both tiers |
+| succeeding post-hardening | **once**, in the pass that scored 96.2% |
+| succeeding in 12 dedicated repeats, fast tier | 0/12 |
+| succeeding in 12 dedicated repeats, deep tier | 0/12 |
+| succeeding across a subsequent 60-run suite (20 cases × 3) | 0/60 |
+| case-level instability, 20 cases × 3 runs | 3/20 gave more than one answer |
+
+So the honest statement is neither "still fails" nor "fixed":
+
+> Hardening the prompt drove the injection from reproducible on both tiers down
+> to a rate that did not recur in 84 subsequent runs. It was observed once after
+> hardening, so the rate is low and **not** zero — and the underlying property is
+> structural, not a prompt bug: a classifier that decides scope from
+> caller-supplied text can always be argued out of an entity.
+
+A low-probability escalation is still an escalation, which is why the response
+is `decisive_exclusions` and `strict_narrowing` rather than a claim that
+prompting solved it. Anything that cannot be driven to zero should be
+instrumented, not asserted away.
+
+It also means a **single eval run must not be quoted as a result**, in this
+project or in the README. Numbers published here are from `--repeat 3` or
+better, and `evals/results-*.json` records the repeat count.

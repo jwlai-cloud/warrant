@@ -31,7 +31,10 @@ PRESET="${PRESET:-1gpu-16vcpu-200gb}"     # TODO(verify) matching H100 preset
 SUBNET="${SUBNET:-vpcsubnet-e00j1frq8qfhnhvy2q}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"   # card says 262144; we need far less
 
-: "${AUTH_TOKEN:?set AUTH_TOKEN to a random secret; it becomes WARRANT_VLLM_API_KEY}"
+: "${AUTH_TOKEN_SECRET:?the endpoint's bearer token, as a Nebius SecretStash id}"
+# Deliberately --token-secret rather than --token: a value on the command line
+# is visible in `ps` to every user on the box and lands in shell history.
+#   nebius secret create --name warrant-fast-tier-token --value "$(openssl rand -hex 16)"
 
 # The nano_v3 reasoning parser is still a downloadable plugin, not built in.
 # It is fetched into the container at start because there is no image layer
@@ -66,7 +69,7 @@ nebius ai endpoint create \
   --shm-size 16Gi \
   --public \
   --auth token \
-  --token "${AUTH_TOKEN}" \
+  --token-secret "${AUTH_TOKEN_SECRET:?create a SecretStash entry and set AUTH_TOKEN_SECRET to its id; passing --token puts the secret in the process listing and your shell history}" \
   --subnet-id "${SUBNET}" \
   --preemptible
 

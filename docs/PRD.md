@@ -101,7 +101,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P1-2 | Console with grant matrix, agent fleet, runs, approvals, filterable audit. | **done** &mdash; `src/warrant/api/static/`, served at `/`, live API |
 | P1-3 | Audit shows which inference tier served each decision. | **done** |
 | P1-4 | Two-tier inference with fallback — stopping the GPU degrades, never breaks. | **done** |
-| P1-5 | Classifier eval with precision/recall per tier, run against real inference. | **done** &mdash; 20 labelled cases, both tiers measured, results committed |
+| P1-5 | Classifier eval with precision/recall per tier, run against real inference. | **done** &mdash; 20 labelled cases, both tiers measured, results committed. Found a live prompt-injection path (ADR-0009) |
 | P1-6 | Architecture model large enough that the grant matrix does not fit in a reader's head (~6 capabilities × 10 entities). | not started |
 
 ### P2 — only if the first two tiers are complete
@@ -119,8 +119,10 @@ Every line here was considered and cut on purpose. Re-opening one requires a rea
 - **Not an agent builder.** WARRANT governs agents; it does not help you write them.
 - **Not an EA repository.** It consumes a model. LeanIX and Ardoq own that space.
 - **Not an enforcement sandbox.** NVIDIA OpenShell is a PEP; ServiceNow AI Control
-  Tower already claimed "decides above OpenShell" (May 2026). Cut from scope **and**
-  from the docs.
+  Tower already claimed "decides above OpenShell" (May 2026). Cut from scope and
+  from README/ARCHITECTURE. `docs/LEARNING.md` still carries a section on it;
+  that file is a personal learning log rather than a product claim, and the
+  section is retained as a record of what was investigated and dropped.
 - **Not transitive.** WARRANT authorises A→B. Whether A's authority flows through
   B to C is unsolved here and unsolved generally. Named in the README, not half-built.
 - **Not row-level or time-boxed grants.** Grants are capability × data entity.
@@ -173,7 +175,7 @@ Nemotron has stopped being load-bearing (ADR-0007).
 
 | Criterion | What we are betting on | Current risk |
 |---|---|---|
-| Technological Implementation | Deterministic core + two-tier Nemotron + no-bypass gate, 29 tests | low |
+| Technological Implementation | Deterministic core + two-tier Nemotron + no-bypass gate, 64 tests, a measured classifier eval, and a full adversarial review whose findings are fixed in-tree | low |
 | **Design** | The console and the approvals workflow | **highest — 25% of score, not yet in the repo** |
 | Potential Impact | A real unsolved gap, named by the MCP spec community | medium |
 | Quality of the Idea | Refusal-as-planning-constraint. Nobody has built it. | low |

@@ -1,7 +1,8 @@
 # 0007. Classification is load-bearing, or it is removed
 
 Date: 2026-09-17
-Status: Accepted
+Status: Accepted — the decision stands; the worked example below was moved to a
+different agent pair by commit 329d008, see the note at the end
 
 ## Context
 
@@ -78,3 +79,22 @@ every input, Nemotron is decorative.
   the declared set and denies. It never narrows to empty, which would grant.
 - ADR-0004 is untouched. The grant table still decides; classification only
   selects which grants are checked.
+
+## Addendum, 2026-09-20 — the example moved, the decision did not
+
+Commit 329d008 relocated `Employee.Compensation` from `inventory-reconciler` to
+`roster-planner`, on the grounds that an inventory agent holding payroll does
+not survive the question "why does Operations steward salaries?". The A/B
+therefore moved with it, and the table above describes a model that no longer
+exists. ADRs are immutable, so the original text stands; the live pair is:
+
+| Purpose (both `expense-auditor → roster-planner`) | Narrows to | Outcome |
+|---|---|---|
+| "which employees travelled in Q3, from the employee roster" | `Employee.Roster` | **granted** |
+| "verify allowance claims against employee compensation bands" | `Employee.Compensation` | **refused** |
+
+The decision this ADR records — that classification must be able to change the
+outcome, and that a test must fail if it stops being able to — is unaffected,
+and `tests/test_ab_demo.py` still enforces it. The new pair is strictly better:
+People & Culture stewards both entities, so the asymmetry is *who travelled*
+versus *what they earn* rather than a cross-domain accident.

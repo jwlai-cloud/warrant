@@ -36,7 +36,15 @@ abstraction.
 Separate processes rather than subgraphs in one app, because the organisational
 boundary has to be a real network hop for the no-bypass guarantee below to mean
 anything, and because one URL per agent is what an A2A Agent Card will later
-attach to.
+attach to. `warrant serve-agent <id>` starts one; `scripts/run_demo.sh` starts
+the whole topology and `scripts/smoke_topology.sh` proves the seam across it.
+
+Only `expense-auditor` uses LangGraph — it is the one agent with a planning
+loop. The other two are request handlers. The console's **Run** button takes a
+shortcut for convenience: `POST /v1/demo/run` executes the real graph against
+the real plane but reaches it in-process, so the console works without the
+agent services running. The cross-process path is the one `smoke_topology.sh`
+exercises.
 
 **`warrant.agents.governed_call`** — the single seam every cross-boundary call
 passes through. Requests a warrant, and on refusal hands the structured reasons
@@ -83,7 +91,10 @@ work. `TierRouter` resolves a logical tier (`fast`, `deep`) to a provider and
 falls back when a tier is unreachable.
 
 **`warrant.engine.audit`** — append-only JSONL log of every decision, granted or
-refused.
+refused. Append-only in the sense that nothing rewrites a record; the file is
+still deletable by `POST /v1/demo/reset`, which is why that route 404s unless
+`demo_mode` is on. It is also the warrant store that callees verify against, so
+deleting it revokes every live warrant.
 
 **`warrant.api`** — FastAPI surface: `POST /v1/warrant`, `GET /v1/audit`,
 `GET /v1/model`, `GET /healthz`.
@@ -117,8 +128,9 @@ the flow continues instead of stopping:
     complete the reconciliation on `Supplier.Contract` alone, and report the
     reduced scope; or
 14. **Escalate** — when the task cannot be completed at all, draft a grant
-    request naming `inventory-control → Employee.Compensation` and the People &
-    Culture steward who can approve it
+    request naming `expense-management → Employee.Compensation` (the *caller's*
+    capability, which is the one lacking the grant) and the People & Culture
+    steward who can approve it
 15. **Record** — write the refused path to the run log so the next run does not
     retry it blindly
 
@@ -130,10 +142,13 @@ authorization decision is still auditable.
 - **Nebius Token Factory inference API** — `POST /v1/chat/completions` against
   `nvidia/nemotron-3-super-120b-a12b` (deep tier). Satisfies the hackathon's
   "runtime call to the Token Factory inference API" clause.
-- **Nebius AI Cloud Serverless Endpoints** — a GPU endpoint running the
-  `vllm/vllm-openai` container serving Nemotron 3 Nano (fast tier), and a
-  CPU-only endpoint hosting the API and UI. Satisfies the "deployed/run using
-  Nebius AI Cloud compute" clause.
+- **Nebius AI Cloud Serverless Endpoints** *(development and benchmarking)* — a
+  GPU endpoint running `vllm/vllm-openai` with Nemotron 3 Nano, plus a CPU-only
+  endpoint hosting the plane and console. **Both tiers currently run on Token
+  Factory**, which is what satisfies the hackathon's "runtime call to the Token
+  Factory inference API" clause on its own; self-hosting is the sovereign-tier
+  comparison, not the compliance route, and is kept off during judging so no GPU
+  burns unattended.
 - **NVIDIA Nemotron 3** — Nano (fast) and Super/Ultra (deep). The per-tier
   cost/latency dial is vLLM's top-level `thinking_token_budget` sampling
   parameter; Token Factory does not document it, so it binds on the sovereign
@@ -149,7 +164,7 @@ authorization decision is still auditable.
 |---|---|---|---|
 | Three org agents | Nebius Serverless Endpoint, CPU-only | Yes, through judging | One service each, or one container running all three |
 | Authorization plane + UI | Nebius Serverless Endpoint, CPU-only | Yes, through judging | Small continuous bill; endpoints do NOT scale to zero |
-| Fast tier (vLLM + Nemotron Nano) | Nebius Serverless Endpoint, 1× L40S | **No — started manually** | ~$0.74/hr preemptible; stopped = no compute charge |
+| Fast tier (vLLM + Nemotron Nano) | Nebius Serverless Endpoint, 1× **H100** | **No — started manually** | Serverless L40S quota is zero on this tenant; `msp.cloudapps.gpu.h100` is 16. H100 also matches NVIDIA's support matrix for Nano 30B, so self-hosting serves the same model Token Factory does |
 | Deep tier | Nebius Token Factory | Managed | Per token, inside the $50 of hackathon credits |
 | Audit log | JSONL on the API container | — | Move to Object Storage before submission |
 
