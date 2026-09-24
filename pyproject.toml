@@ -20,10 +20,15 @@ dependencies = [
 # callable from any framework (ADR-0005, kept by ADR-0008), and
 # tests/test_no_bypass.py fails if an agent module reaches past the seam.
 agents = ["langgraph>=1.2"]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "langgraph>=1.2"]
+# mcp 2.x: FastMCP was renamed MCPServer and the API moved. Pinned to the major
+# so v1 examples from memory or old docs fail loudly rather than subtly.
+mcp = ["mcp>=2.2,<3"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "langgraph>=1.2",
+       "mcp>=2.2,<3"]
 
 [project.scripts]
 warrant = "warrant.cli:app"
+warrant-mcp = "warrant.mcp_server:main"
 
 [build-system]
 requires = ["setuptools>=68"]

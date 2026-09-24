@@ -102,6 +102,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P1-3 | Audit shows which inference tier served each decision. | **done** |
 | P1-4 | Two-tier inference with fallback — stopping the GPU degrades, never breaks. | **done** |
 | P1-5 | Classifier eval with precision/recall per tier, run against real inference. | **done** &mdash; 20 labelled cases, both tiers measured, results committed. Found a live prompt-injection path (ADR-0009) |
+| P1-7 | **MCP server** — any MCP agent can request warrants; refusals as structured denials with remediation hints; identity bound to config (ADR-0010). | **done** |
 | P1-6 | Architecture model large enough that the grant matrix does not fit in a reader's head (~6 capabilities × 10 entities). | not started |
 
 ### P2 — only if the first two tiers are complete

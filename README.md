@@ -184,6 +184,38 @@ If the fast tier is unreachable — because the GPU endpoint is stopped to save
 money — the router falls through to the deep tier, the request still succeeds,
 and the audit record names the tier that served it.
 
+## Use it from any MCP agent
+
+WARRANT ships an MCP server, so any MCP client can ask for warrants with a config
+entry rather than an integration:
+
+```json
+{
+  "mcpServers": {
+    "warrant": {
+      "command": "warrant-mcp",
+      "env": {
+        "WARRANT_AGENT_ID": "expense-auditor",
+        "WARRANT_PLANE_URL": "http://127.0.0.1:8000",
+        "WARRANT_AGENT_TOKEN": "<the token mapped to this agent>"
+      }
+    }
+  }
+}
+```
+
+| Tool | Returns |
+|---|---|
+| `request_warrant(callee, purpose)` | a warrant — or a refusal **as data**: each refused entity, its steward, and what to do next |
+| `list_my_access()` | what this agent may and may not reach, so it can plan before it calls |
+| `raise_grant_request(data_entity, reason)` | a request routed to the steward — accepted only after a recorded refusal |
+
+Each server instance *is* one agent, fixed by configuration. **No tool takes a
+caller argument** — otherwise the model driving the client could choose who it
+is ([ADR-0010](docs/adr/0010-expose-the-plane-over-mcp.md)). MCP's own
+authorization interest group lists *"structured denials, remediation hints"* as
+unsolved; a WARRANT refusal is one.
+
 ## What this is not
 
 - **Not an agent builder.** WARRANT does not help you build agents; it governs

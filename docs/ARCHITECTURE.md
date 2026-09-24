@@ -60,6 +60,15 @@ capability, the data entity and the owning steward), *record* (log what was
 refused and why, so the next run does not retry the same path). Nemotron chooses
 the branch and writes the request; it cannot change the authorization outcome.
 
+**`warrant.mcp_server`** *(ADR-0010)* — the plane exposed as three MCP tools
+(`request_warrant`, `list_my_access`, `raise_grant_request`). An adapter like
+`warrant.agents`: it imports the MCP SDK so the core never does, and it proxies
+to the HTTP plane rather than embedding a service, so there is one source of
+truth. Identity comes from server configuration, never from a tool argument.
+Refusals are returned as structured results with the steward and a remediation
+hint, not as tool errors. Complements A2A (agent-to-agent transport, deferred);
+MCP is agent-to-tool.
+
 **`warrant.model`** — the architecture model: a deliberately small subset of the
 TOGAF content metamodel (Organization Unit, Business Capability, Data Entity,
 Application Component/Agent, and Grant), loaded from YAML into an in-memory
