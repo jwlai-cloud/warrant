@@ -28,8 +28,8 @@ planning constraint rather than an error.
 
 *Prior-art rows below are timestamped. This is a moving market: SAP's own
 reference architecture dates an agent↔tool enforcement point to H2/2026, and
-Okta ships agent identity features quarterly. Claims here are accurate as of
-September 2026 and will be re-checked before submission.*
+Okta ships agent identity features quarterly. Re-checked against Okta's Oktane
+announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 ## What it does
 
@@ -231,12 +231,13 @@ unsolved; a WARRANT refusal is one.
 
 ## Prior art this builds on and does not duplicate
 
-All rows accurate as of **September 2026**.
+All rows accurate as of **24 September 2026**, re-checked after Oktane.
 
 | Project | What it does | What it doesn't |
 |---|---|---|
 | [SAP LeanIX AI Agent Hub](https://www.leanix.net/en/blog/sap-leanix-announces-launch-of-ai-agent-hub-and-key-industry-partnerships) (GA 2025-11) | Agents as EA objects linked to capabilities | No runtime decision *as of Sept 2026* — SAP's reference architecture dates an agent↔tool PEP to H2/2026 |
-| [Okta A2A Connections](https://www.okta.com/blog/product-innovation/securing-agent-to-agent-connections/) (EA 2026-06) | Runtime "may A call B", agent identity, tool-call brokering | No business capability or data-stewardship model; denials are token/scope-shaped |
+| [Okta for AI Agents](https://www.okta.com/newsroom/press-releases/ai-innovations-oktane-2026/) (Oktane, 2026-09-22) | Agent-to-Agent Connections **GA**; Agent Gateway enforcing policy at runtime (Q3 GA); kill switch revoking live sessions | Re-checked after Oktane: no business capability, data-owner or classification inputs, no business reason on a denial, no purpose-based access, no approval workflow |
+| [Blueprint Alliance](https://siliconangle.com/2026/09/22/okta-adds-ai-agent-runtime-gateway-forms-blueprint-alliance-with-aws-and-crowdstrike/) (2026-09-22) | Okta, AWS, Google Cloud, ServiceNow, Salesforce, CrowdStrike +6: multivendor reference architecture — agents as first-class identities, access scoped to tasks | A framework, not a product. "Task-scoped access" is the nearest move toward purpose-based narrowing; nothing on stewardship |
 | [LLMKube ModelRouter](https://llmkube.com/docs/concepts/model-router) | Routes local-vs-cloud on data classification | Classification is a caller-asserted header |
 | [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) (GTC 2026-03) | Kernel-level sandbox; enforces operator-written YAML | A PEP, not a PDP; no org model |
 | [Open Agent Passport](https://arxiv.org/abs/2603.20953) (2026-03) | Deterministic pre-action authorization, signed audit | Policy is declarative rules; no ownership or stewardship inputs |

@@ -271,8 +271,14 @@ a known limitation rather than half-built.
   string unverified. Super is `nvidia/nemotron-3-super-120b-a12b`.
 - **`--subnet-id`** required if the project has multiple subnets. Unknown until
   the account exists.
-- **Oktane 2026 is 22–24 Sept.** Okta already ships agent-to-agent connection
-  policies. Re-check the prior-art table once after it, before submission.
+- ~~Oktane 2026, 22–24 Sept.~~ **Re-checked 24 Sept — the claim survives.** Okta
+  took Agent-to-Agent Connections GA and shipped a runtime Agent Gateway and
+  kill switch; the primary release mentions no business-capability,
+  data-owner or classification inputs, no business reason on a denial, no
+  purpose-based access and no approval workflow. Nearest move: the new
+  12-vendor Blueprint Alliance (incl. ServiceNow, Salesforce, AWS, Google)
+  agrees on "task-scoped" access as a principle. Next to watch: SAP's H2/2026
+  agent↔tool enforcement point.
 - **Atlan + Immuta** is the closest thing found to WARRANT's claim. Unverified
   whether steward metadata is a *runtime* decision input or only an approval
   workflow. Worth a docs-level read before publishing the differentiation.
