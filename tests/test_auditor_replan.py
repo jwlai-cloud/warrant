@@ -182,3 +182,24 @@ def test_a_corrupt_approvals_line_does_not_stop_startup(tmp_path):
     store = RequestStore(f)
     assert store.all() == [] and store.approved_grants() == []
     assert len(store.corrupt) == 2
+
+
+async def test_a_plan_that_forgets_some_data_is_caught_and_asked_for():
+    """Measured live: Nemotron sometimes plans without asking for salary data at
+    all. Then nothing is refused, nothing is escalated, and six claims end the
+    run silently unchecked. The agent must notice and request what it is
+    missing - which WARRANT then refuses, and the escalation follows."""
+    import json as _j
+    async def forgetful_llm(system, user, schema=None):
+        if schema:
+            return _j.dumps({"rationale": "contracts and roster only", "steps": [
+                {"callee": "inventory-reconciler", "purpose": "supplier contract rates", "why": "a"},
+                {"callee": "roster-planner", "purpose": "travel roster dates", "why": "b"}]})
+        return None
+    s = await build_graph(_call_fn(), llm=forgetful_llm).ainvoke({})
+    kinds = [e["kind"] for e in s["trace"]]
+    assert "replan" in kinds, "the gap was never noticed"
+    gap = [e for e in s["trace"] if e["kind"] == "replan" and e.get("data", {}).get("gap")]
+    assert gap and gap[0]["data"]["gap"] == COMP
+    assert len(s["grant_requests"]) == 1, "the refused gap was not escalated"
+    assert s["grant_requests"][0]["blocking"] == 6

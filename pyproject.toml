@@ -1,7 +1,7 @@
 [project]
 name = "warrant"
 version = "0.1.0"
-description = "An authorization plane for agent-to-agent calls that decides from your enterprise architecture model - and returns the reason."
+description = "A multi-agent system where agents cannot reach across organisational boundaries without a warrant, and replan when refused."
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
@@ -40,3 +40,9 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+
+# The console is package data, not code. Without this, any non-editable install
+# (every container) ships the API with no index.html and GET / returns 500 -
+# the editable install in the original Dockerfile hid it.
+[tool.setuptools.package-data]
+"warrant.api" = ["static/*"]

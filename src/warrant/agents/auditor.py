@@ -189,7 +189,7 @@ _PLAN_SCHEMA = {
     "type": "object",
     "properties": {
         "rationale": {"type": "string"},
-        "steps": {"type": "array", "items": {
+        "steps": {"type": "array", "minItems": 1, "maxItems": 4, "items": {
             "type": "object",
             "properties": {"callee": {"type": "string"},
                            "purpose": {"type": "string"},
@@ -206,6 +206,13 @@ _NARROWER = (
     "hold no grant to. Rewrite its purpose as ONE specific sentence asking ONLY "
     "for the permitted data listed, and nothing else. Do not mention the refused "
     "data. Return only the sentence."
+)
+
+_GAP_FILLER = (
+    "You are the Expense Auditor agent. Some claims could not be checked because "
+    "your plan never requested the data they need. Write ONE specific sentence "
+    "requesting exactly the data named, stating what you will verify with it. "
+    "Return only the sentence."
 )
 
 _ESCALATOR = (
@@ -314,24 +321,39 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None,
         s: AuditState = {"claims": CLAIMS, "results": [], "gathered": {},
                          "refusals": [], "grant_requests": [], "trace": []}
         s["trace"] = ev(s, "start", f"Audit Q3 expense claims - {_claims_digest(CLAIMS)}")
-        raw = await ask(_PLANNER, json.dumps({"task": "Audit Q3 expense claims",
-                                              "claims": _claims_digest(CLAIMS),
-                                              "directory": _directory()}), _PLAN_SCHEMA)
-        steps, source, rationale = [], "fallback", ""
-        if raw:
+        prompt = json.dumps({"task": "Audit Q3 expense claims",
+                             "claims": _claims_digest(CLAIMS),
+                             "directory": _directory()})
+        steps, source, rationale, why_fallback = [], "fallback", "", ""
+        # Two attempts. Measured against live Nemotron Super, roughly one plan
+        # in five came back as valid JSON with an empty steps list; a second
+        # ask almost always succeeds, and costs one call only when needed.
+        for _attempt in range(2 if llm is not None else 0):
+            raw = await ask(_PLANNER, prompt, _PLAN_SCHEMA)
+            if not raw:
+                why_fallback = "no response from the model"
+                continue
             try:
                 parsed = json.loads(raw)
-                steps = _valid_plan(parsed)
+            except json.JSONDecodeError:
+                why_fallback = "model plan was not valid JSON"
+                continue
+            steps = _valid_plan(parsed) if isinstance(parsed, dict) else []
+            if steps:
                 rationale = str(parsed.get("rationale", ""))[:400]
-                source = "model" if steps else "fallback"
-            except (json.JSONDecodeError, AttributeError):
-                steps = []
+                source, why_fallback = "model", ""
+                break
+            why_fallback = "model plan named no usable requests"
         if not steps:
             steps = FALLBACK_PLAN
+            if llm is None:
+                why_fallback = "no model configured"
         s.update(plan=steps, plan_source=source, rationale=rationale)
         s["trace"] = ev(s, "plan", f"Planned {len(steps)} requests"
-                        + (" (Nemotron)" if source == "model" else " (fallback plan)"),
-                        steps=steps, rationale=rationale, source=source)
+                        + (" (Nemotron)" if source == "model"
+                           else f" (fallback plan: {why_fallback})"),
+                        steps=steps, rationale=rationale, source=source,
+                        why_fallback=why_fallback)
         return s
 
     async def gather(state: AuditState) -> AuditState:
@@ -354,14 +376,44 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None,
                         blocked={k: len(v) for k, v in a["blocked_by"].items()})
         return {**a, "trace": s["trace"]}
 
+    def _unasked_gaps(state: AuditState) -> list[str]:
+        """Entities that block claims but that the agent never requested at all.
+        A plan can simply forget a kind of data; without this, the claims that
+        needed it would end the run unchecked and nobody would be asked."""
+        requested = set(state.get("gathered", {}))
+        for r in state.get("refusals", []):
+            requested |= set(r["entities"])
+        return [e for e in state.get("blocked_by", {}) if e not in requested]
+
     def route(state: AuditState) -> str:
-        return "replan" if state.get("refusals") else "report"
+        return "replan" if (state.get("refusals") or _unasked_gaps(state)) else "report"
 
     async def replan(state: AuditState) -> AuditState:
         s = dict(state)
         results = list(state["results"])
         gathered = dict(state["gathered"])
         still_refused: list[dict] = []
+
+        # 0. Fill gaps: claims blocked on data the plan never asked for.
+        holders = {e: d["agent"] for d in _directory() for e in d["holds"]}
+        for entity in _unasked_gaps(state):
+            callee = holders.get(entity)
+            if not callee:
+                continue
+            n = len(state["blocked_by"].get(entity, []))
+            purpose = await ask(_GAP_FILLER, json.dumps(
+                {"data_needed": entity, "claims_waiting": n, "audit": "Q3 expense claims"}))
+            by_model = bool(purpose)
+            if not purpose:
+                purpose = f"{entity} to verify {n} Q3 claims that cannot be checked without it"
+            s["trace"] = ev(s, "replan",
+                            f"{n} claims could not be checked: requesting {entity} "
+                            f"from {callee}", gap=entity, new_purpose=purpose,
+                            by_model=by_model)
+            gap_refusals: list[dict] = []
+            s.update(await call(s, {"callee": callee, "purpose": purpose},
+                                results, gathered, gap_refusals, label="retry"))
+            still_refused.extend(gap_refusals)
 
         # 1. Narrow: a refused request that also touched permitted data is
         #    reissued asking only for the permitted part.
