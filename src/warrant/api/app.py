@@ -13,12 +13,14 @@ GET  /            - the console
 """
 from __future__ import annotations
 
+import asyncio
+import json
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, Header
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -203,20 +205,19 @@ async def decide_grant_request(request_id: str, body: DecisionIn):
     return asdict(r)
 
 
-@app.post("/v1/demo/run")
-async def demo_run():
-    """Run the Expense Auditor against the live plane and return its state.
+# One run at a time. Every run spends real Token Factory credit and the hosted
+# demo is public, so parallel clicks (or a script) must not multiply the bill.
+_RUN_LOCK = asyncio.Lock()
 
-    Registered only when demo_mode is on; see _demo_guard.
 
-    The real LangGraph graph, the real deterministic decisions, the real replan.
-    The only thing stubbed is the transport: `call_fn` reaches the plane
-    in-process rather than over HTTP, so the console demo does not require the
-    three agent services to be running. `governed_call` covers the HTTP path and
-    tests/test_no_bypass.py covers the seam.
+async def _run_auditor(on_event=None) -> dict:
+    """Run the Expense Auditor against the live plane.
+
+    The real LangGraph graph, the real deterministic decisions, real Nemotron
+    planning. The only shortcut is transport: `call_fn` reaches the plane
+    in-process rather than over HTTP, so the console works without the agent
+    services running. scripts/smoke_topology.sh covers the cross-process path.
     """
-    if (blocked := _demo_guard()) is not None:
-        return blocked
     assert _svc is not None
     from ..agents.auditor import build_graph
     from ..agents.base import GovernedResult
@@ -233,12 +234,14 @@ async def demo_run():
                             for c, e in d.missing_grants],
             justification=d.justification,
             served_by={"tier": d.tier_used, "provider": d.provider_kind,
+                       "model": (_svc.config.tiers.get(d.tier_used).model
+                                 if d.tier_used in _svc.config.tiers else ""),
                        "latency_ms": round(d.latency_ms, 2)},
             data={"rows": rows},
         )
 
     # The agent plans, narrows and reports with the deep tier. On the offline
-    # profile the tier is a stub that cannot plan, so the graph uses its
+    # profile that tier is a stub that cannot plan, so the graph uses its
     # deterministic fallbacks instead of narrating canned text.
     llm = None
     if _svc.config.tiers.get("deep") and _svc.config.tiers["deep"].kind != "mock":
@@ -246,7 +249,7 @@ async def demo_run():
             c = await _svc.router.complete("deep", system, user, json_schema=schema)
             return c.text
 
-    state = await build_graph(call_fn, llm=llm).ainvoke({})
+    state = await build_graph(call_fn, llm=llm, on_event=on_event).ainvoke({})
 
     # The escalate branch, made durable: what the agent drafted becomes a real
     # request a steward can act on.
@@ -278,6 +281,55 @@ async def demo_run():
         "summary": state.get("summary", ""),
         "report": state.get("report", ""),
     }
+
+
+@app.post("/v1/demo/run")
+async def demo_run():
+    """Run the auditor and return its full state. Gated on demo_mode."""
+    if (blocked := _demo_guard()) is not None:
+        return blocked
+    if _RUN_LOCK.locked():
+        return JSONResponse(status_code=429, content={"error": "a run is already in progress"})
+    async with _RUN_LOCK:
+        return await _run_auditor()
+
+
+@app.get("/v1/demo/stream")
+async def demo_stream():
+    """The same run, streamed as server-sent events while the agent works, so
+    the console shows each plan, warrant, refusal and finding as it happens
+    rather than replaying them afterwards. Ends with a `done` event carrying
+    the full result."""
+    if (blocked := _demo_guard()) is not None:
+        return blocked
+    if _RUN_LOCK.locked():
+        return JSONResponse(status_code=429, content={"error": "a run is already in progress"})
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def worker():
+        async with _RUN_LOCK:
+            try:
+                result = await _run_auditor(on_event=queue.put_nowait)
+                queue.put_nowait({"kind": "done", "result": result})
+            except Exception as exc:         # surface, never hang the stream
+                queue.put_nowait({"kind": "error", "text": f"{type(exc).__name__}: {exc}"})
+
+    async def events():
+        task = asyncio.create_task(worker())
+        try:
+            while True:
+                ev = await queue.get()
+                yield f"data: {json.dumps(ev)}\n\n"
+                if ev["kind"] in ("done", "error"):
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
 
 
 @app.post("/v1/demo/reset")

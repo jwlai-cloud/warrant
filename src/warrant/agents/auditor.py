@@ -259,7 +259,8 @@ def _valid_plan(raw: dict) -> list[dict]:
 
 # ---------------------------------------------------------------- the graph
 
-def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
+def build_graph(call_fn: CallFn, llm: LLM | None = None,
+                on_event: Callable[[dict], None] | None = None) -> Any:
     """`call_fn(callee, purpose) -> GovernedResult` and `llm(system, user,
     schema) -> str` are injected, so the graph runs against the real plane and
     real inference in the console, and against stubs in tests."""
@@ -267,8 +268,11 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
 
     def ev(state: AuditState, kind: str, text: str, **data) -> list[dict]:
         trace = list(state.get("trace", []))
-        trace.append({"t": round((time.perf_counter() - t0) * 1000), "kind": kind,
-                      "text": text, **({"data": data} if data else {})})
+        event = {"t": round((time.perf_counter() - t0) * 1000), "kind": kind,
+                 "text": text, **({"data": data} if data else {})}
+        trace.append(event)
+        if on_event is not None:
+            on_event(event)          # live stream to the console
         return trace
 
     async def ask(system: str, user: str, schema: dict | None = None) -> str | None:
@@ -367,12 +371,14 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
             if permitted and not ref.get("retry"):
                 purpose = await ask(_NARROWER, json.dumps(
                     {"original_purpose": ref["purpose"], "permitted_data": permitted}))
+                narrowed_by_model = bool(purpose)
                 if not purpose:
                     purpose = f"{', '.join(permitted)} needed for the Q3 expense audit"
                 s["trace"] = ev(s, "replan",
                                 f"Narrowing request to {ref['callee']}: ask only for "
                                 f"{', '.join(permitted)}", refused=sorted(refused),
-                                permitted=permitted, new_purpose=purpose)
+                                permitted=permitted, new_purpose=purpose,
+                                by_model=narrowed_by_model)
                 retry_refusals: list[dict] = []
                 s.update(await call(s, {"callee": ref["callee"], "purpose": purpose},
                                     results, gathered, retry_refusals, label="retry"))
@@ -400,6 +406,7 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
                 text = await ask(_ESCALATOR, json.dumps({
                     "data_entity": m["data_entity"], "requesting_capability": m["capability"],
                     "claims_blocked": n, "audit": "Q3 expense claims"}))
+                by_model = bool(text)
                 if not text:
                     text = (f"Close {n} Q3 claims that cannot be verified without "
                             f"{m['data_entity']}.")
@@ -409,7 +416,7 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
                 s["trace"] = ev(s, "escalate",
                                 f"Grant request drafted for {m['data_entity']} "
                                 f"({n} claims blocked)", data_entity=m["data_entity"],
-                                blocking=n, reason=text[:1500])
+                                blocking=n, reason=text[:1500], by_model=by_model)
 
         # 4. Record, so the next run does not retry the refused path blind.
         record = [{"callee": r["callee"], "purpose": r["purpose"],
@@ -442,7 +449,8 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None) -> Any:
                   f"({r['blocking']} claims blocked)" for r in reqs]
         narrative = await ask(_REPORTER, json.dumps(facts))
         s = dict(state)
-        s["trace"] = ev(s, "report", narrative or headline, facts=facts)
+        s["trace"] = ev(s, "report", narrative or headline, facts=facts,
+                        by_model=bool(narrative))
         return {"report": "\n".join(lines), "summary": narrative or "",
                 "trace": s["trace"]}
 

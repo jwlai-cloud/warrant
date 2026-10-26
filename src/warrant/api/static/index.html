@@ -208,6 +208,49 @@
   .agent dt{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
   .agent dd{margin:0;display:flex;flex-wrap:wrap;gap:4px}
 
+
+  /* live trace + findings */
+  .runwrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:0}
+  .runcol{min-width:0}
+  .runcol+.runcol{border-left:1px solid var(--rule)}
+  .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;
+    border-bottom:1px solid var(--rule);font-family:Archivo,sans-serif;font-size:10px;font-weight:600;
+    letter-spacing:.11em;text-transform:uppercase;color:var(--ink-soft)}
+  ol.timeline{list-style:none;margin:0;padding:6px 0;max-height:640px;overflow-y:auto}
+  ol.timeline>li{display:grid;grid-template-columns:52px 86px minmax(0,1fr);gap:4px 10px;
+    padding:8px 14px;border-bottom:1px solid var(--rule);animation:tlIn .35s ease-out 1}
+  ol.timeline>li:last-child{border-bottom:0}
+  ol.timeline>li.tl-empty{display:block;color:var(--ink-faint);font-size:12.5px;padding:22px 14px;animation:none}
+  @keyframes tlIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){ol.timeline>li{animation:none}}
+  .tl-t{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px;
+    font-variant-numeric:tabular-nums}
+  .tl-k{padding-top:1px}
+  .tl-body{min-width:0;font-size:12.5px}
+  .tl-text{word-break:break-word}
+  .tl-quote{margin:6px 0 0;padding:6px 10px;border-left:2px solid var(--accent);background:var(--accent-soft);
+    font-size:12.5px;color:var(--ink)}
+  .tl-quote.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+  .tl-sub{margin-top:5px;font-size:11px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .tl-steps{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+  .tl-steps li{font-size:12px;padding-left:10px;border-left:2px solid var(--rule-hard)}
+  .tl-steps b{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500}
+  .who-model{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--accent);font-weight:600}
+  #findings{padding:10px 12px;display:grid;gap:9px}
+  .finding{border:1px solid var(--rule);border-left:3px solid var(--warn);background:var(--surface);
+    padding:9px 11px;animation:tlIn .35s ease-out 1}
+  .finding.hidden-until{border-left-color:var(--bad)}
+  .finding-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .finding-id{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600}
+  .finding-amt{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--warn);
+    font-variant-numeric:tabular-nums}
+  .finding p{margin:4px 0 0;font-size:12px;color:var(--ink-soft)}
+  .finding .via{margin-top:6px;font-size:10.5px;color:var(--ink-faint)}
+  .summary-box{margin:0 14px 14px;padding:11px 13px;border:1px solid var(--rule);background:var(--sunk);font-size:13px}
+  .summary-box h4{margin:0 0 6px;font-family:Archivo,sans-serif;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--accent)}
+  @media (max-width:980px){.runwrap{grid-template-columns:1fr}.runcol+.runcol{border-left:0;border-top:1px solid var(--rule)}}
+
   @media (max-width:760px){
     .shell{grid-template-columns:1fr}
     .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding-bottom:6px}
@@ -245,22 +288,25 @@
         <p>Cross-boundary agent traffic. A refusal is not an incident &mdash; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
       <div class="banner" id="ovBanner" hidden></div>
       <dl class="kpis">
+        <div class="kpi alert"><dt>Under query</dt><dd id="kRisk">&mdash;</dd><div class="sub">flagged by the audit</div></div>
         <div class="kpi"><dt>Governed calls</dt><dd id="kCalls">0</dd><div class="sub">recorded</div></div>
         <div class="kpi"><dt>Refusal rate</dt><dd id="kRate">&mdash;</dd><div class="sub">of all decisions</div></div>
         <div class="kpi alert"><dt>Awaiting grant</dt><dd id="kPending">0</dd><div class="sub">requests in queue</div></div>
-        <div class="kpi"><dt>Work blocked</dt><dd id="kBlocked">0</dd><div class="sub">claims held open</div></div>
+        <div class="kpi"><dt>Claims blocked</dt><dd id="kBlocked">0</dd><div class="sub">waiting on a grant</div></div>
         <div class="kpi good"><dt>Model coverage</dt><dd id="kCov">&mdash;</dd><div class="sub">grants across the matrix</div></div>
       </dl>
       <div class="panel">
-        <div class="panel-head"><h2>Q3 expense reconciliation</h2>
-          <button class="btn primary" id="ovRun" type="button">Run</button></div>
+        <div class="panel-head"><h2>Q3 expense audit &middot; Northwind Group</h2>
+          <button class="btn primary" id="ovRun" type="button">Run audit</button></div>
         <div class="panel-body">
-          <p style="margin:0 0 11px;color:var(--ink-soft)">The Expense Auditor (Finance) must close 47 Q3 claims. Verifying them needs data held by Operations and by People&nbsp;&amp;&nbsp;Culture.</p>
+          <p style="margin:0 0 11px;color:var(--ink-soft);max-width:78ch">The Expense Auditor (Finance) audits 47 Q3 claims worth &pound;11,179.80. Finance can read its own claims; every other check needs data a different department owns &mdash; so the agent has to ask WARRANT first, and WARRANT decides from who owns what.</p>
           <div class="tscroll"><table>
-            <thead><tr><th>Claim type</th><th>Count</th><th>Verified against</th><th>Held by</th><th>Status</th></tr></thead>
+            <thead><tr><th>Check</th><th>Needs</th><th>Owned by</th><th>Result</th></tr></thead>
             <tbody>
-              <tr><td>Supplier rate</td><td class="num">41</td><td><span class="chip">Supplier.Contract</span></td><td>Operations</td><td id="ovS1"><span class="tag mute">not started</span></td></tr>
-              <tr><td>Travel allowance</td><td class="num">6</td><td><span class="chip">Employee.Compensation</span></td><td>People &amp; Culture</td><td id="ovS2"><span class="tag mute">not started</span></td></tr>
+              <tr><td>Duplicate submissions</td><td><span class="chip">Expense.Claim</span></td><td>Finance (own data)</td><td id="ovC1"><span class="tag mute">not run</span></td></tr>
+              <tr><td>Invoices against contract rates</td><td><span class="chip">Supplier.Contract</span></td><td>Operations</td><td id="ovC2"><span class="tag mute">not run</span></td></tr>
+              <tr><td>Travel against rostered trips</td><td><span class="chip">Employee.Roster</span></td><td>People &amp; Culture</td><td id="ovC3"><span class="tag mute">not run</span></td></tr>
+              <tr><td>Allowances against salary band</td><td><span class="chip">Employee.Compensation</span> <span class="cls restricted">restricted</span></td><td>People &amp; Culture</td><td id="ovC4"><span class="tag mute">not run</span></td></tr>
             </tbody></table></div>
         </div>
       </div>
@@ -288,13 +334,23 @@
 
     <section class="view" id="v-runs">
       <div class="view-head"><h1>Runs</h1>
-        <p>Every cross-boundary call passes through one seam. A refusal returns structured reasons to the planner &mdash; it does not raise &mdash; and the agent replans.</p></div>
+        <p>Nemotron plans the audit and writes every request. WARRANT decides each one from the architecture model &mdash; no model in that decision. A refusal comes back as reasons the agent replans around, not an error.</p></div>
       <div class="panel">
-        <div class="panel-head"><h2>expense-auditor &middot; Q3 reconciliation</h2>
+        <div class="panel-head"><h2>expense-auditor &middot; Q3 audit &middot; live</h2>
           <span class="chip" id="runState">idle</span>
           <button class="btn primary" id="runBtn" type="button">Run</button>
           <button class="btn" id="resetBtn" type="button">Reset demo</button></div>
-        <ol class="steps" id="steps"></ol>
+        <div class="runwrap">
+          <div class="runcol">
+            <div class="col-head">Live trace <span class="who-model" id="modelTag"></span></div>
+            <ol class="timeline" id="timeline"><li class="tl-empty">Press Run to start the audit. Every plan, warrant, refusal and finding appears here as it happens.</li></ol>
+          </div>
+          <div class="runcol">
+            <div class="col-head">Findings <span class="chip" id="riskChip">&pound;0.00</span></div>
+            <div id="findings"><div class="empty">Nothing flagged yet.</div></div>
+          </div>
+        </div>
+        <div class="summary-box" id="summaryBox" hidden><h4>Audit summary &middot; written by Nemotron</h4><div id="summaryText"></div></div>
         <div class="outcome" id="outcome" hidden><h3 id="outcomeHead">Replanned</h3><div class="branches" id="branches"></div></div>
       </div>
     </section>
@@ -562,7 +618,7 @@
       var td = document.querySelector('td[data-c="' + cellKey(r.capability, r.data_entity) + '"]');
       if (td) td.classList.add("fresh");
       var ob = $("ovBanner"); ob.hidden = false; ob.className = "banner";
-      ob.textContent = "A grant was approved since the last run. Re-run the Q3 reconciliation — all 47 claims should now close.";
+      ob.textContent = "A grant was approved since the last run. Re-run the audit — the agent can now check the six allowance claims it was blocked on.";
     }
   }
 
@@ -584,105 +640,199 @@
     });
   }
 
-  function renderRun(out) {
-    var steps = $("steps"); steps.textContent = "";
-    out.results.forEach(function (r) {
-      var li = document.createElement("li");
-      var top = el("div", "step-top");
-      var hop = el("div", "hop");
-      hop.appendChild(document.createTextNode("expense-auditor "));
-      hop.appendChild(el("i", null, "(Finance)"));
-      hop.appendChild(document.createTextNode(" → " + r.callee));
-      top.appendChild(hop);
-      top.appendChild(el("span", "tag " + (r.granted ? "ok" : "bad"), r.granted ? "granted" : "refused"));
-      li.appendChild(top);
-      li.appendChild(el("p", "purpose", "“" + r.purpose + "”"));
-      var meta = el("div", "meta");
-      meta.appendChild(document.createTextNode("touches "));
-      (r.entities || []).forEach(function (e) { meta.appendChild(el("span", "chip", e)); });
-      var sb = r.served_by || {};
-      meta.appendChild(document.createTextNode(" · classified by " + (sb.tier || "?") + "/" + (sb.provider || "?") + " in " + Math.round(sb.latency_ms || 0) + "ms"));
-      li.appendChild(meta);
-      if (!r.granted) {
-        var why = el("div", "why");
-        why.textContent = "Capability expense-management holds no grant to " + (r.entities || []).join(", ")
-          + ", stewarded by " + stewardOf((r.entities || [])[0]).name + ".";
-        li.appendChild(why);
-      }
-      steps.appendChild(li);
-    });
+  /* ---- live run ---- */
+  var KIND = {
+    start: ["task", "mute"], plan: ["plan", "ok"], granted: ["granted", "ok"],
+    refused: ["refused", "bad"], replan: ["replan", "warn"], finding: ["finding", "warn"],
+    reconciled: ["audit", "mute"], escalate: ["escalate", "warn"], report: ["report", "ok"],
+    error: ["error", "bad"]
+  };
+  var RISK = 0, FOUND = {};
 
-    var out2 = $("outcome"), br = $("branches");
-    br.textContent = ""; out2.hidden = false;
-    if (out.unresolved === 0) {
-      $("outcomeHead").textContent = "Completed";
-      var b0 = el("div", "branch"); b0.appendChild(el("h4", null, "Reconciled"));
-      b0.appendChild(el("span", "tally", out.closed + " / " + out.total));
-      b0.appendChild(el("p", null, "Every Q3 claim closed. No replan was needed."));
-      br.appendChild(b0);
-      $("runState").textContent = "complete · " + out.closed + "/" + out.total;
-    } else {
-      $("outcomeHead").textContent = "Replanned";
-      var b1 = el("div", "branch"); b1.appendChild(el("h4", null, "Degrade"));
-      b1.appendChild(el("span", "tally", out.closed + " / " + out.total));
-      b1.appendChild(el("p", null, "Closed with the data the grants allowed. " + out.unresolved
-        + " remain open, blocked on " + out.blocked_entities.join(", ") + "."));
-      br.appendChild(b1);
-      var b2 = el("div", "branch"); b2.appendChild(el("h4", null, "Escalate"));
-      b2.appendChild(el("p", null, out.grant_requests.length
-        ? "Grant request raised and routed to the steward who can approve it. See Approvals."
-        : "A request for this grant is already open."));
-      br.appendChild(b2);
-      var b3 = el("div", "branch"); b3.appendChild(el("h4", null, "Record"));
-      b3.appendChild(el("p", null, "The refused path is written to the run log, so the next reconciliation does not retry it blind."));
-      br.appendChild(b3);
-      $("runState").textContent = "replanned · " + out.closed + "/" + out.total;
-    }
+  function money(n) {
+    return "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function shortModel(m) { return (m || "").split("/").pop(); }
 
-    $("ovS1").textContent = ""; $("ovS1").appendChild(el("span", "tag ok", out.closed + " closed"));
-    $("ovS2").textContent = "";
-    $("ovS2").appendChild(out.unresolved
-      ? el("span", "tag bad", out.unresolved + " blocked")
-      : el("span", "tag ok", "closed"));
-    markGaps(out.blocked_entities);
+  function resetLive() {
+    $("timeline").textContent = "";
+    $("findings").textContent = "";
+    $("findings").appendChild(el("div", "empty", "Nothing flagged yet."));
+    $("riskChip").textContent = money(0);
+    $("summaryBox").hidden = true; $("outcome").hidden = true;
+    RISK = 0; FOUND = {};
   }
 
-  async function run() {
+  function addFinding(f) {
+    if (FOUND[f.claim]) return;
+    FOUND[f.claim] = true;
+    var box = $("findings");
+    var empty = box.querySelector(".empty"); if (empty) empty.remove();
+    var d = el("div", "finding" + (f.evidence === "Employee.Compensation" ? " hidden-until" : ""));
+    var top = el("div", "finding-top");
+    top.appendChild(el("span", "finding-id", f.claim + " · " + f.kind));
+    top.appendChild(el("span", "finding-amt", money(f.amount)));
+    d.appendChild(top);
+    d.appendChild(el("p", null, f.detail));
+    var st = stewardOf(f.evidence);
+    d.appendChild(el("div", "via", "only visible with " + f.evidence
+      + (f.evidence === "Expense.Claim" ? " (Finance's own data)" : " — owned by " + st.name)));
+    box.appendChild(d);
+    RISK += Number(f.amount || 0);
+    $("riskChip").textContent = money(RISK);
+  }
+
+  function addEvent(e) {
+    var tl = $("timeline");
+    var empty = tl.querySelector(".tl-empty"); if (empty) empty.remove();
+    var k = KIND[e.kind] || [e.kind, "mute"];
+    var d = e.data || {};
+    var li = document.createElement("li");
+    li.appendChild(el("span", "tl-t", ((e.t || 0) / 1000).toFixed(1) + "s"));
+    var kd = el("span", "tl-k"); kd.appendChild(el("span", "tag " + k[1], k[0])); li.appendChild(kd);
+    var body = el("div", "tl-body");
+    body.appendChild(el("div", "tl-text", e.text));
+
+    if (e.kind === "plan") {
+      if (d.source === "model") {
+        var sub = el("div", "tl-sub"); sub.appendChild(el("span", "who-model", "written by Nemotron"));
+        body.appendChild(sub);
+        if (d.rationale) body.appendChild(el("div", "tl-quote", "“" + d.rationale + "”"));
+      }
+      var ul = el("ul", "tl-steps");
+      (d.steps || []).forEach(function (st) {
+        var item = document.createElement("li");
+        item.appendChild(el("b", null, "→ " + st.callee + "  "));
+        item.appendChild(document.createTextNode("“" + st.purpose + "”"));
+        ul.appendChild(item);
+      });
+      body.appendChild(ul);
+    }
+    if (e.kind === "granted" || e.kind === "refused") {
+      if (d.purpose) body.appendChild(el("div", "tl-quote" + (e.kind === "refused" ? " bad" : ""),
+        (d.retry ? "retry, narrowed: " : "") + "“" + d.purpose + "”"));
+      var sub2 = el("div", "tl-sub");
+      sub2.appendChild(document.createTextNode("touches"));
+      (d.entities || []).forEach(function (x) { sub2.appendChild(el("span", "chip", x)); });
+      var sb = d.served_by || {};
+      if (sb.provider) sub2.appendChild(document.createTextNode(
+        "· classified by " + (shortModel(sb.model) || sb.tier) + " in " + Math.round(sb.latency_ms || 0) + "ms"
+        + " · decided by the grant table, no model"));
+      body.appendChild(sub2);
+      if (e.kind === "refused") {
+        (d.missing || []).forEach(function (m) {
+          var st = stewardOf(m.data_entity);
+          body.appendChild(el("div", "why", "Capability " + m.capability + " holds no grant to "
+            + m.data_entity + ", stewarded by " + st.name + "."));
+        });
+      }
+    }
+    if (e.kind === "replan" && d.new_purpose) body.appendChild(el("div", "tl-quote", "“" + d.new_purpose + "”"));
+    if (e.kind === "finding" && d.finding) addFinding(d.finding);
+    if (e.kind === "escalate" && d.reason) {
+      var sub3 = el("div", "tl-sub"); sub3.appendChild(el("span", "who-model",
+        (d.by_model ? "drafted by Nemotron" : "template text, no model") + " → " + stewardOf(d.data_entity).name));
+      body.appendChild(sub3);
+      body.appendChild(el("div", "tl-quote", "“" + d.reason + "”"));
+    }
+    li.appendChild(body);
+    tl.appendChild(li);
+    tl.scrollTop = tl.scrollHeight;
+  }
+
+  function checkResult(id, tag) {
+    var c = $(id); c.textContent = ""; c.appendChild(tag);
+  }
+
+  function renderOutcome(out) {
+    var kinds = {};
+    (out.flagged || []).forEach(function (f) { kinds[f.kind] = (kinds[f.kind] || 0) + 1; addFinding(f); });
+    var blocked = out.blocked_entities || [];
+    function res(kind, ent) {
+      if (blocked.indexOf(ent) >= 0) return el("span", "tag bad", "refused — unchecked");
+      return kinds[kind] ? el("span", "tag warn", kinds[kind] + " flagged") : el("span", "tag ok", "clear");
+    }
+    checkResult("ovC1", res("duplicate", "Expense.Claim"));
+    checkResult("ovC2", res("over-contract", "Supplier.Contract"));
+    checkResult("ovC3", res("no-rostered-trip", "Employee.Roster"));
+    checkResult("ovC4", res("over-band", "Employee.Compensation"));
+    $("kRisk").textContent = money(out.at_risk);
+
+    if (out.summary) { $("summaryText").textContent = out.summary; $("summaryBox").hidden = false; }
+
+    var o = $("outcome"), br = $("branches"); br.textContent = ""; o.hidden = false;
+    var b1 = el("div", "branch"); b1.appendChild(el("h4", null, "Verified"));
+    b1.appendChild(el("span", "tally", out.closed + " / " + out.total));
+    b1.appendChild(el("p", null, (out.flagged || []).length + " flagged, " + money(out.at_risk) + " under query."));
+    br.appendChild(b1);
+    if (out.unresolved) {
+      $("outcomeHead").textContent = "Replanned";
+      var b2 = el("div", "branch"); b2.appendChild(el("h4", null, "Blocked"));
+      b2.appendChild(el("span", "tally", String(out.unresolved)));
+      b2.appendChild(el("p", null, "claims could not be checked without " + blocked.join(", ")
+        + ". A grant request is waiting in Approvals."));
+      br.appendChild(b2);
+    } else {
+      $("outcomeHead").textContent = "Complete";
+      var b3 = el("div", "branch"); b3.appendChild(el("h4", null, "Every claim checked"));
+      b3.appendChild(el("p", null, "Nothing left blocked. The grant approved in Approvals let the agent check the allowances."));
+      br.appendChild(b3);
+    }
+    $("runState").textContent = (out.unresolved ? "replanned · " : "complete · ")
+      + out.closed + "/" + out.total + " verified";
+    markGaps(blocked);
+  }
+
+  function finishRun() {
+    RUNNING = false;
+    $("runBtn").disabled = false; $("ovRun").disabled = false;
+    $("runBtn").textContent = "Run again"; $("ovRun").textContent = "Run audit again";
+  }
+
+  function run() {
     if (RUNNING) return;
     RUNNING = true;
     $("runBtn").disabled = true; $("ovRun").disabled = true;
     $("runBtn").textContent = "Running…"; $("ovRun").textContent = "Running…";
-    $("runState").textContent = "calling the plane…";
+    $("runState").textContent = "agent working…";
     $("ovBanner").hidden = true; $("apBanner").hidden = true;
+    resetLive();
     show("runs");
 
-    var poll = setInterval(loadAudit, 900);
-    var r = await api("/v1/demo/run", { method: "POST" });
-    clearInterval(poll);
-
-    if (!r.ok) {
-      $("runState").textContent = "failed";
+    var es = new EventSource("/v1/demo/stream");
+    es.onmessage = async function (m) {
+      var e; try { e = JSON.parse(m.data); } catch (err) { return; }
+      if (e.kind === "done") {
+        es.close(); renderOutcome(e.result);
+        await loadAudit(); await loadRequests(); finishRun();
+      } else if (e.kind === "error") {
+        es.close(); addEvent(e); $("runState").textContent = "failed"; finishRun();
+      } else {
+        addEvent(e);
+        if (e.kind === "granted" || e.kind === "refused") loadAudit();
+      }
+    };
+    es.onerror = function () {
+      if (!RUNNING) return;
+      es.close();
       var b = $("apBanner"); b.hidden = false; b.className = "banner bad";
-      b.textContent = "Run failed: " + r.status;
-    } else {
-      renderRun(r.body);
-      await loadAudit(); await loadRequests();
-    }
-    RUNNING = false;
-    $("runBtn").disabled = false; $("ovRun").disabled = false;
-    $("runBtn").textContent = "Run again"; $("ovRun").textContent = "Run again";
+      b.textContent = "The live stream dropped. If a run is already in progress, wait for it and press Run again.";
+      $("runState").textContent = "stream interrupted"; finishRun();
+    };
   }
   $("runBtn").addEventListener("click", run);
   $("ovRun").addEventListener("click", run);
 
   $("resetBtn").addEventListener("click", async function () {
     await api("/v1/demo/reset", { method: "POST" });
-    $("steps").textContent = ""; $("outcome").hidden = true;
+    resetLive();
+    var tl = $("timeline"); tl.textContent = "";
+    tl.appendChild(el("li", "tl-empty", "Press Run to start the audit. Every plan, warrant, refusal and finding appears here as it happens."));
     $("runState").textContent = "idle";
     $("ovBanner").hidden = true; $("apBanner").hidden = true;
-    $("runBtn").textContent = "Run"; $("ovRun").textContent = "Run";
-    $("ovS1").textContent = ""; $("ovS1").appendChild(el("span", "tag mute", "not started"));
-    $("ovS2").textContent = ""; $("ovS2").appendChild(el("span", "tag mute", "not started"));
+    $("runBtn").textContent = "Run"; $("ovRun").textContent = "Run audit";
+    ["ovC1", "ovC2", "ovC3", "ovC4"].forEach(function (id) { checkResult(id, el("span", "tag mute", "not run")); });
+    $("kRisk").textContent = "—";
     await loadModel(); await loadAudit(); await loadRequests();
   });
 
