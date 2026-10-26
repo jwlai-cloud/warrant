@@ -94,6 +94,28 @@ tested:
 
 Every decision — granted or refused — is written to an append-only audit log.
 
+## How the agents work together
+
+![WARRANT topology: four agents across three departments, with the authorization plane between them](docs/topology.png)
+
+| Agent | Department | Kind | What it does |
+|---|---|---|---|
+| **Expense Auditor** | Finance | planning agent · LangGraph · Nemotron 3 Super | plans the audit, writes every request, narrows when refused, notices data its plan forgot, drafts grant requests and the report |
+| **Inventory Reconciler** | Operations | data agent | holds supplier contracts and stock; re-checks every warrant before serving |
+| **Roster Planner** | People & Culture | data agent | holds the roster and the restricted salary bands; re-checks every warrant |
+| **Steward Agent** | People & Culture | reviewing agent · Nemotron 3 Super | reviews each grant request **for the data owner** before a person sees it; recommends approve, approve with conditions, or decline — never grants |
+| *Human steward* | People & Culture | person | reads the requester's case and their own agent's review, and decides |
+
+Between them sits **WARRANT**, the authorization plane. Every cross-department
+request goes through it, and it decides each one in three steps: Nemotron 3 Nano
+classifies which data the purpose touches (it can only narrow), the **grant table
+decides with no model in it**, and Nemotron 3 Super writes the reason. The same
+plane is exposed over **MCP**, so any agent can ask for a warrant.
+
+The Expense Auditor and the Steward Agent are independent: they work for
+different departments, see different evidence, and can disagree. The auditor
+argues for access; the steward agent weighs it for the owner; a person decides.
+
 ## The model never decides authorization — it decides what to do about a refusal
 
 Grant resolution is **pure, deterministic graph traversal**. No model call, no

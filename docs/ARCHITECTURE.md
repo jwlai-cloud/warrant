@@ -21,17 +21,27 @@ makes the authorization decision (ADR-0004).
 
 ## Components
 
-**`warrant.agents`** *(the product; ADR-0008)* — three LangGraph agents, one per
-organisation unit, each running as its own small FastAPI service on its own
-port. Each owns a fixture dataset matching the data entities the architecture
-model attributes to it, so a refusal withholds real rows rather than an
-abstraction.
+**`warrant.agents`** *(the product; ADR-0008)* — four agents across three
+organisation units. Two reason with Nemotron; two hold data. Each data agent
+owns a fixture dataset matching the entities the architecture model attributes
+to it, so a refusal withholds real rows rather than an abstraction. See
+`docs/topology.png` for the picture.
 
-| Agent | Org unit | Owns |
-|---|---|---|
-| `expense-auditor` | Finance | `Expense.Claim` |
-| `inventory-reconciler` | Operations | `Inventory.StockLevel`, `Supplier.Contract` |
-| `roster-planner` | People & Culture | `Employee.Roster`, `Employee.Compensation` |
+| Agent | Org unit | Kind | Owns / does |
+|---|---|---|---|
+| `expense-auditor` | Finance | planning agent (LangGraph, Nemotron 3 Super) | `Expense.Claim`; plans the audit, narrows refused requests, fills gaps its plan missed, drafts grant requests and the report |
+| `inventory-reconciler` | Operations | data agent | `Inventory.StockLevel`, `Supplier.Contract` |
+| `roster-planner` | People & Culture | data agent | `Employee.Roster`, `Employee.Compensation` (restricted) |
+| `steward-agent` | People & Culture | reviewing agent (Nemotron 3 Super) | reviews every grant request for the data owner before a person sees it; recommends, never grants |
+
+**`warrant.agents.steward`** — the second reasoning agent. Works for the data
+owner, not the requester. On every grant request, by any path (console run,
+HTTP, MCP), it establishes facts in code — is there an automatic denial behind
+the request, who is asking for which capability, how sensitive is the entity,
+was this declined by a person before — and Nemotron weighs them into a
+recommendation with conditions. The review is attached to the request and shown
+to the human steward; `decide()` never reads it. A request with no denial behind
+it is never recommended for approval, whatever the model writes.
 
 Separate processes rather than subgraphs in one app, because the organisational
 boundary has to be a real network hop for the no-bypass guarantee below to mean
