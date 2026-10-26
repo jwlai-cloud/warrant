@@ -209,6 +209,14 @@
   .agent dd{margin:0;display:flex;flex-wrap:wrap;gap:4px}
 
 
+  /* steward agent review */
+  .review{border:1px solid var(--rule);border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 12px}
+  .review-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px;
+    font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+  .review p{margin:0;font-size:12.5px}
+  .review ul{margin:7px 0 0;padding-left:18px;font-size:12px;color:var(--ink-soft)}
+  .review .fine{margin-top:7px;font-size:10.5px;color:var(--ink-faint)}
+
   /* live trace + findings */
   .runwrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:0}
   .runcol{min-width:0}
@@ -574,7 +582,13 @@
         d.appendChild(el("dd", null, pr[1])); fields.appendChild(d);
       });
       body.appendChild(fields);
-      if (r.reason) body.appendChild(el("div", "justify", r.reason));
+      if (r.reason) {
+        var rw = el("div");
+        rw.appendChild(el("label", "rl", "Request \u00b7 from " + r.requested_by));
+        rw.appendChild(el("div", "justify", r.reason));
+        body.appendChild(rw);
+      }
+      if (r.review) body.appendChild(reviewBox(r.review));
 
       if (r.state === "pending") {
         var lw = el("div");
@@ -582,7 +596,9 @@
         lab.setAttribute("for", "note-" + r.id); lw.appendChild(lab);
         var ta = document.createElement("textarea");
         ta.id = "note-" + r.id; ta.rows = 2;
-        ta.value = "Approved for Q3 close. Scope limited to allowance verification.";
+        ta.value = (r.review && r.review.conditions && r.review.conditions.length)
+          ? "Approved with the Steward Agent's conditions: " + r.review.conditions.join("; ") + "."
+          : "Approved for Q3 close. Scope limited to allowance verification.";
         lw.appendChild(ta); body.appendChild(lw);
 
         var row = el("div", "btn-row");
@@ -641,10 +657,30 @@
   }
 
   /* ---- live run ---- */
+  function reviewBox(rv) {
+    var box = el("div", "review");
+    var head = el("div", "review-head");
+    head.appendChild(document.createTextNode("Steward Agent review \u00b7 "
+      + (rv.by_model ? "Nemotron" : "rules, no model")));
+    var rec = rv.recommendation || "";
+    head.appendChild(el("span", "tag " + (rec === "decline" ? "bad" : rec === "approve" ? "ok" : "warn"),
+      rec.replace(/_/g, " ")));
+    box.appendChild(head);
+    box.appendChild(el("p", null, rv.reasoning || ""));
+    if (rv.conditions && rv.conditions.length) {
+      var ul = el("ul");
+      rv.conditions.forEach(function (c) { ul.appendChild(el("li", null, c)); });
+      box.appendChild(ul);
+    }
+    box.appendChild(el("div", "fine", "A recommendation to the human steward. It cannot grant anything; only the decision below writes a grant."));
+    return box;
+  }
+
   var KIND = {
     start: ["task", "mute"], plan: ["plan", "ok"], granted: ["granted", "ok"],
     refused: ["refused", "bad"], replan: ["replan", "warn"], finding: ["finding", "warn"],
     reconciled: ["audit", "mute"], escalate: ["escalate", "warn"], report: ["report", "ok"],
+    review: ["steward", "warn"],
     error: ["error", "bad"]
   };
   var RISK = 0, FOUND = {};
@@ -726,6 +762,12 @@
             + m.data_entity + ", stewarded by " + st.name + "."));
         });
       }
+    }
+    if (e.kind === "review") {
+      var sub4 = el("div", "tl-sub");
+      sub4.appendChild(el("span", "who-model", "a second agent, working for the data owner"));
+      body.appendChild(sub4);
+      body.appendChild(reviewBox(d));
     }
     if (e.kind === "replan" && d.new_purpose) body.appendChild(el("div", "tl-quote", "“" + d.new_purpose + "”"));
     if (e.kind === "finding" && d.finding) addFinding(d.finding);

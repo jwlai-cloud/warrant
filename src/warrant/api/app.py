@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -183,7 +184,8 @@ async def raise_grant_request(body: GrantRequestIn):
         r = _svc.requests.raise_request(_svc.model, **body.model_dump())
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"error": str(exc)})
-    return JSONResponse(status_code=201, content=asdict(r))
+    await _steward_review(r.id)
+    return JSONResponse(status_code=201, content=asdict(_svc.requests.get(r.id)))
 
 
 @app.post("/v1/grant-requests/{request_id}/decision")
@@ -205,6 +207,40 @@ async def decide_grant_request(request_id: str, body: DecisionIn):
     return asdict(r)
 
 
+def _llm():
+    """The deep tier as a plain async text function, or None on the offline
+    profile, where the tier is a stub that cannot plan or review."""
+    assert _svc is not None
+    deep = _svc.config.tiers.get("deep")
+    if not deep or deep.kind == "mock":
+        return None
+
+    async def llm(system: str, user: str, schema: dict | None = None) -> str:
+        c = await _svc.router.complete("deep", system, user, json_schema=schema)
+        return c.text
+    return llm
+
+
+async def _steward_review(gr_id: str, on_event=None) -> dict | None:
+    """Have the Steward Agent review a request before a person sees it."""
+    assert _svc is not None
+    from ..agents.steward import review_request
+    r = _svc.requests.get(gr_id)
+    if r is None or r.state != "pending" or r.review:
+        return r.review if r else None
+    review = await review_request(
+        asdict(r), _svc.model, audit.read_all(_svc.config.audit_path, limit=500),
+        [asdict(x) for x in _svc.requests.all()], llm=_llm())
+    _svc.requests.attach_review(gr_id, review)
+    if on_event is not None:
+        on_event({"t": None, "kind": "review",
+                  "text": f"Steward Agent ({review['facts']['steward']}) recommends: "
+                          f"{review['recommendation'].replace('_', ' ')}",
+                  "data": {k: v for k, v in review.items() if k != "facts"}
+                          | {"request_id": gr_id}})
+    return review
+
+
 # One run at a time. Every run spends real Token Factory credit and the hosted
 # demo is public, so parallel clicks (or a script) must not multiply the bill.
 _RUN_LOCK = asyncio.Lock()
@@ -222,6 +258,18 @@ async def _run_auditor(on_event=None) -> dict:
     from ..agents.auditor import build_graph
     from ..agents.base import GovernedResult
     from ..agents.fixtures import DATASETS
+
+    started = time.perf_counter()
+    extra_events: list[dict] = []
+
+    def emit(e: dict) -> None:
+        """Events from outside the graph (the Steward Agent) get the same clock
+        and land in the same trace as the auditor's."""
+        if e.get("t") is None:
+            e["t"] = round((time.perf_counter() - started) * 1000)
+            extra_events.append(e)
+        if on_event is not None:
+            on_event(e)
 
     async def call_fn(callee: str, purpose: str) -> GovernedResult:
         d = await _svc.evaluate(WarrantRequest("expense-auditor", callee, purpose))
@@ -243,13 +291,7 @@ async def _run_auditor(on_event=None) -> dict:
     # The agent plans, narrows and reports with the deep tier. On the offline
     # profile that tier is a stub that cannot plan, so the graph uses its
     # deterministic fallbacks instead of narrating canned text.
-    llm = None
-    if _svc.config.tiers.get("deep") and _svc.config.tiers["deep"].kind != "mock":
-        async def llm(system: str, user: str, schema: dict | None = None) -> str:
-            c = await _svc.router.complete("deep", system, user, json_schema=schema)
-            return c.text
-
-    state = await build_graph(call_fn, llm=llm, on_event=on_event).ainvoke({})
+    state = await build_graph(call_fn, llm=_llm(), on_event=emit).ainvoke({})
 
     # The escalate branch, made durable: what the agent drafted becomes a real
     # request a steward can act on.
@@ -260,7 +302,8 @@ async def _run_auditor(on_event=None) -> dict:
                 _svc.model, capability=r["capability"],
                 data_entity=r["data_entity"], requested_by=r["asked_for_by"],
                 reason=r["reason"], blocking=r["blocking"])
-            raised.append(asdict(gr))
+            await _steward_review(gr.id, on_event=emit)
+            raised.append(asdict(_svc.requests.get(gr.id)))
         except ValueError:
             pass        # already granted or already open - both fine
 
@@ -277,7 +320,7 @@ async def _run_auditor(on_event=None) -> dict:
         "plan": state.get("plan", []),
         "plan_source": state.get("plan_source", ""),
         "rationale": state.get("rationale", ""),
-        "trace": state.get("trace", []),
+        "trace": state.get("trace", []) + extra_events,
         "summary": state.get("summary", ""),
         "report": state.get("report", ""),
     }

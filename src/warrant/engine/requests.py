@@ -40,6 +40,9 @@ class GrantRequest:
     decided_by: str = ""
     decided_at: str = ""
     note: str = ""
+    # The Steward Agent's recommendation, attached before a person sees the
+    # request. Advisory only: decide() never reads it.
+    review: dict | None = None
     raised_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -159,6 +162,15 @@ class RequestStore:
             data_entity=data_entity, requested_by=requested_by,
             reason=reason, blocking=blocking,
         ))
+
+    def attach_review(self, request_id: str, review: dict) -> GrantRequest | None:
+        """Record the Steward Agent's review as a new state line. It does not
+        change `state` - only a person's decision does."""
+        r = self.get(request_id)
+        if r is None:
+            return None
+        r.review = review
+        return self._append(r)
 
     def decide(self, model: ArchitectureModel, request_id: str, *,
                approve: bool, decided_by: str, note: str = "") -> GrantRequest:
