@@ -1,25 +1,25 @@
-"""Film the demo walkthrough against the real console and live Nemotron.
+"""Film the demo video against the real console and live Nemotron.
 
-    python3 scripts/capture_demo.py            # -> demo-video/walkthrough.mp4
+    python3 scripts/narrate.py                 # first: voices every beat
+    python3 scripts/capture_demo.py [--demo-url URL]
+        # -> demo-video/walkthrough.mp4, demo-video/beats.json
 
-Starts the plane on a private port with config/warrant.yaml (real Token Factory
-inference), resets the demo, then drives headless Chrome through the story in
-docs/VIDEO.md: overview -> run -> refusal -> findings -> approve -> re-run ->
-the hidden finding. Every frame is a real call; nothing is a preset.
+The video is a list of beats in demo/narration.json. Each beat is one line of
+narration plus what is on screen while it is said: 'go' moves the page (a card,
+the topology, a console view, a live run, the approval click), 'spot' rings the
+elements the line is about and dims the rest (demo/spotlight.js, injected here
+and never shipped in the product). Each beat stays on screen for exactly the
+length of its voiced line, so picture and voice cannot drift apart; the start
+time of every beat is written to beats.json for the assembler.
 
-Pacing is an edit decision list over the raw recording, not a slowed-down video.
-A live run spends most of its ~35s waiting on the model, and sometimes delivers
-several events at once (the three findings land together). So each trace event
-gets a dwell time matched to its line of narration:
-
-  - if the next event arrives later than that, the dead wait is CUT;
-  - if it arrives sooner, the frame is HELD for the shortfall.
-
-Everything on screen is real; only time between real frames is edited, and the
-log reports exactly how much was cut and how much was held.
+The two live runs call real Token Factory inference. A run spends most of its
+time waiting on the model, so the wait between trace events is CUT from the
+recording (an edit decision list), never sped up: every frame is a real frame,
+and the log reports how much waiting was cut.
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -34,15 +34,19 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "demo-video"
 PORT = 8020
 URL = f"http://127.0.0.1:{PORT}/"
-W, H = 1920, 1080
+# The console is zoomed 1.25x inside a 1920x1080 page, so its text reads 25%
+# larger on video while staying sharp (Playwright's recorder ignores
+# device_scale_factor). The cards and topology are drawn for 1920 and are not.
+CONSOLE_ZOOM = 1.25
+GAP = 0.3             # breath between beats
+SETTLE = 0.35         # the ring starts moving before its line starts
 
-# Seconds each event stays on screen, matched to docs/VIDEO.md narration.
-RUN1_DWELL = {"task": 3, "plan": 12, "granted": 7, "refused": 10, "replan": 6,
-              "finding": 4.5, "audit": 2, "escalate": 7, "report": 3, "steward": 11}
-RUN2_DWELL = {"task": 1, "plan": 2.5, "granted": 1.5, "refused": 1.5, "replan": 1.5,
-              "finding": 2.5, "audit": 1.5, "escalate": 1.5, "report": 1.5,
-              "steward": 1.5}
-BATCH_CAP = 14       # a burst of simultaneous events never holds longer than this
+# Seconds each trace event stays on screen while a run streams in. The run
+# beats only need the trace to visibly fill; the beats after them walk it.
+RUN1_DWELL = {"plan": 1.0, "refused": 1.0}
+RUN2_DWELL: dict = {}
+DEFAULT_DWELL = {1: 0.45, 2: 0.3}
+BATCH_CAP = 1.8
 
 
 def _env() -> dict:
@@ -84,23 +88,18 @@ class EDL:
             self.segments[-1][2] += seconds
             self.held_total += seconds
 
-    def out_time(self, t: float) -> float:
-        """Map a raw-recording time to its time in the edited output. A time
-        inside a cut maps to where the next kept segment starts."""
-        acc = 0.0
-        for a, b, frz in self.segments:
-            if t < a:
-                return acc
-            if t <= b:
-                return acc + (t - a)
-            acc += (b - a) + frz
-        return acc
+    def length(self) -> float:
+        """Length of the edited output so far."""
+        return sum(b - a + f for a, b, f in self.segments)
+
+    def out_now(self) -> float:
+        """Edited time of this instant, if everything since the cursor is kept."""
+        return self.length() + (self.now() - self.cursor)
 
 
-async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict,
-                   firsts: dict | None = None):
-    """Press a run button, film the trace arriving, then pace it. `firsts`
-    receives the raw time each kind of event first appeared."""
+async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict, run: int):
+    """Press a run button and film the trace arriving, cutting the waits
+    between events down to each event's dwell."""
     await page.click(button)
     click_t = edl.now()
     edl.keep_until(click_t)
@@ -108,36 +107,30 @@ async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict,
     seen = 0
     deadline = time.monotonic() + 240
     while time.monotonic() < deadline:
-        tags = await page.locator("#timeline > li:not(.tl-empty) .tl-k .tag").all_inner_texts()
-        if len(tags) > seen:
-            arrivals.append((edl.now(), [t.strip().lower() for t in tags[seen:]]))
-            seen = len(tags)
+        kinds = await page.eval_on_selector_all(
+            "#timeline > li[data-kind]", "els => els.map(e => e.dataset.kind)")
+        if len(kinds) > seen:
+            arrivals.append((edl.now(), kinds[seen:]))
+            seen = len(kinds)
         if done_text in await page.inner_text("#runState"):
             break
         await asyncio.sleep(0.12)
     await asyncio.sleep(1.0)
     end_t = edl.now()
-    if firsts is not None:
-        for t, kinds in arrivals:
-            for k in kinds:
-                firsts.setdefault(k, t)
-
     if not arrivals:
         edl.keep_until(end_t)
         return
     edl.keep_until(min(click_t + 1.2, arrivals[0][0]))
     edl.skip_until(arrivals[0][0])
     for i, (t, kinds) in enumerate(arrivals):
-        want = min(BATCH_CAP, sum(dwell.get(k, 2) for k in kinds))
+        want = min(BATCH_CAP, sum(dwell.get(k, DEFAULT_DWELL[run]) for k in kinds))
         nxt = arrivals[i + 1][0] if i + 1 < len(arrivals) else end_t
         if nxt - t >= want:
             edl.keep_until(t + want)
             edl.skip_until(nxt)
         else:
-            # Freeze well before the next batch: polling notices a batch ~0.1-0.3s
-            # after it starts painting, and rows fade in over 0.35s. Freezing at
-            # nxt - 0.25 caught the refusal half-faded, held under the line
-            # "Salaries, refused".
+            # Freeze well before the next batch lands: rows fade in over 0.35s,
+            # and a later poll can catch the next row half-painted.
             stop = max(t + 0.1, nxt - 0.7)
             edl.keep_until(stop)
             edl.freeze(want - (stop - t))
@@ -146,6 +139,16 @@ async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict,
 
 
 async def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--demo-url", default="")
+    args = ap.parse_args()
+
+    spec = json.loads((ROOT / "demo" / "narration.json").read_text())
+    durs = json.loads((OUT / "narration" / "durations.json").read_text())
+    missing = [b["id"] for b in spec["beats"] if b["id"] not in durs]
+    if missing:
+        raise SystemExit(f"no narration for {missing}: run scripts/narrate.py first")
+
     OUT.mkdir(exist_ok=True)
     for d in ("audit", "raw"):          # cleared at the START of a take, not the end
         shutil.rmtree(OUT / d, ignore_errors=True)
@@ -153,68 +156,105 @@ async def main() -> None:
         [str(ROOT / ".venv/bin/python"), "-m", "uvicorn", "warrant.api.app:app",
          "--port", str(PORT)], cwd=ROOT, env=_env(),
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    marks: dict[str, float] = {}
+    cards = (ROOT / "demo" / "cards.html").as_uri()
+    topo = (ROOT / "docs" / "topology.html").as_uri()
+    beats: list[dict] = []
     errors: list[str] = []
+    result: dict = {}
     try:
         await asyncio.sleep(4)
         async with async_playwright() as p:
             browser = await p.chromium.launch(channel="chrome", headless=True)
             ctx = await browser.new_context(
-                viewport={"width": W, "height": H}, device_scale_factor=1,
-                record_video_dir=str(OUT / "raw"), record_video_size={"width": W, "height": H})
+                viewport={"width": 1920, "height": 1080},
+                record_video_dir=str(OUT / "raw"),
+                record_video_size={"width": 1920, "height": 1080})
+            await ctx.add_init_script(path=str(ROOT / "demo" / "spotlight.js"))
             page = await ctx.new_page()
             edl = EDL()
             page.on("pageerror", lambda e: errors.append(str(e)))
 
-            async def hold(seconds: float):
-                await asyncio.sleep(seconds)
+            async def load(url: str):
+                """Navigate without filming the load."""
                 edl.keep_until(edl.now())
+                await page.goto(url)
+                await page.evaluate("() => document.fonts.ready")
+                if url.startswith("http"):
+                    await page.evaluate(f"() => {{ document.body.style.zoom = {CONSOLE_ZOOM} }}")
+                await asyncio.sleep(0.6)
+                edl.skip_until(edl.now())
 
-            await page.goto(URL)
-            await page.evaluate("() => document.fonts.ready")
+            async def view(name: str):
+                await page.click(f'[data-view="{name}"]')
+                await asyncio.sleep(0.5)
+
+            async def ring(targets, label=None):
+                first = next((t for t in targets or [] if isinstance(t, str)), None)
+                if first and await page.evaluate("s => __reveal(s)", first):
+                    await asyncio.sleep(0.15)
+                if not await page.evaluate("([t, l]) => __spot(t, l)", [targets, label]) and targets:
+                    raise SystemExit(f"spotlight target not on the page: {targets}")
+
+            # A clean slate: no grants approved, no audit history.
+            await load(URL)
             await page.evaluate("() => fetch('/v1/demo/reset', {method: 'POST'})")
-            await page.reload()
-            await page.evaluate("() => document.fonts.ready")
-            await asyncio.sleep(0.8)
-            edl.skip_until(edl.now())                  # page load is not story
 
-            # shots 1-2 (0:00-0:30): the problem
-            marks["overview"] = edl.now()
-            await hold(28)
+            for b in spec["beats"]:
+                go = b.get("go", "")
+                start = None
+                if go.startswith("card:"):
+                    q = f"?card={go[5:]}" + (f"&url={args.demo_url}" if args.demo_url else "")
+                    await load(cards + q)
+                elif go == "topology":
+                    await load(topo)
+                elif go.startswith("app:"):
+                    await load(URL)
+                    await view(go[4:])
+                elif go.startswith("view:"):
+                    await page.evaluate("() => __spot(null)")
+                    await view(go[5:])
+                elif go in ("run", "rerun"):
+                    # The line starts as the button is ringed; the run plays under it.
+                    first = go == "run"
+                    if not first:
+                        await page.evaluate("() => __spot(null)")
+                        await view("runs")
+                    start = edl.out_now()
+                    btn = "#ovRun" if first else "#runBtn"
+                    await ring([btn], "Run audit" if first else "Run again")
+                    await asyncio.sleep(0.9)
+                    await page.evaluate("() => __spot(null)")
+                    await run_live(page, edl, btn, "verified" if first else "complete",
+                                   RUN1_DWELL if first else RUN2_DWELL, 1 if first else 2)
+                    result["run1_risk" if first else "run2_risk"] = await page.inner_text("#riskChip")
+                elif go == "approve":
+                    start = edl.out_now()
+                    result["steward"] = await page.inner_text("#reqList .review-head")
+                    ok = page.locator("#reqList .req button.ok").first
+                    await ok.scroll_into_view_if_needed()
+                    await ring(["#reqList .req button.ok"], "Approve as People & Culture")
+                    await asyncio.sleep(1.4)
+                    await ok.click()
+                    await asyncio.sleep(0.8)
 
-            # shots 3-7 (0:30-1:35): the first run, live
-            marks["run1"] = edl.now()
-            firsts: dict[str, float] = {}
-            await run_live(page, edl, "#ovRun", "verified", RUN1_DWELL, firsts)
-            run1_risk = await page.inner_text("#riskChip")
-            await page.evaluate("() => document.querySelector('#summaryBox').scrollIntoView({behavior: 'smooth', block: 'center'})")
-            await hold(4)
+                lead = 0.25          # an action beat's line starts with its button
+                if start is None:
+                    edl.keep_until(edl.now())
+                    start, lead = edl.length(), SETTLE
+                await ring(b.get("spot"), b.get("label"))
+                await asyncio.sleep(SETTLE)
+                edl.keep_until(edl.now())
+                # Hold until the line has been said, in EDITED time: a run beat
+                # has already used some of its line while the trace filled.
+                remaining = durs[b["id"]] + GAP + lead - (edl.length() - start)
+                if remaining > 0:
+                    await asyncio.sleep(remaining)
+                    edl.keep_until(edl.now())
+                beats.append({"id": b["id"], "start": round(start + lead, 3),
+                              "end": round(edl.length(), 3)})
 
-            # shot 8 (1:35-1:55): the human approves
-            marks["approve"] = edl.now()
-            await page.click('[data-view="approvals"]')
-            await hold(7)
-            await page.hover("text=Approve as People & Culture")
-            await hold(1.5)
-            await page.click("text=Approve as People & Culture")
-            await hold(3)
-            await page.click('[data-view="matrix"]')
-            await hold(6)
-
-            # shot 9 (1:55-2:15): run again, the hidden finding
-            marks["run2"] = edl.now()
-            await page.click('[data-view="overview"]')
-            await hold(1.5)
-            await run_live(page, edl, "#ovRun", "complete", RUN2_DWELL)
-            await page.evaluate("() => { const f = [...document.querySelectorAll('#findings .finding')].find(x => x.textContent.includes('CLM-3606')); if (f) f.scrollIntoView({behavior: 'smooth', block: 'center'}); }")
-            await hold(6)
-            await page.click('[data-view="overview"]')
-            await hold(4)
-            marks["end"] = edl.now()
-
-            result = {"run1_risk": run1_risk,
-                      "risk": await page.inner_text("#kRisk"),
-                      "checks": [await page.inner_text(f"#ovC{i}") for i in range(1, 5)]}
+            await asyncio.sleep(2.5)                # let the close card breathe
+            edl.keep_until(edl.now())
             raw_path = await page.video.path()
             await ctx.close()
             await browser.close()
@@ -223,26 +263,23 @@ async def main() -> None:
         # The audit log is KEPT: when a take comes out wrong it is the only
         # record of what the agent actually asked for and what WARRANT decided.
 
-    # The narration states these figures. A take that ends anywhere else would
-    # put a wrong number on screen under a voice saying the right one, so it is
-    # rejected rather than assembled. Classification varies run to run (see
-    # ADR-0009), so an occasional take differs; re-run the capture.
-    expected_risk = "£2,851.00"
-    if result["run1_risk"] != "£2,561.00":
-        raise SystemExit(f"take rejected: first run ended at {result['run1_risk']}, "
-                         f"narration expects £2,561.00. See {OUT / 'audit'}.")
-    if result["risk"] != expected_risk or any("FLAGGED" not in c.upper()
-                                               for c in result["checks"]):
-        raise SystemExit(
-            f"take rejected: ended at {result['risk']} with checks {result['checks']}, "
-            f"narration expects {expected_risk} and all four checks flagged. "
-            f"See {OUT / 'audit'} for what happened; re-run to take again.")
+    # The narration states these. A take where the live model did something
+    # else would put a wrong claim on screen under a voice saying the right
+    # one, so it is rejected; classification varies run to run (ADR-0009).
+    problems = []
+    if result.get("run1_risk") != "£2,561.00":
+        problems.append(f"first run ended at {result.get('run1_risk')}, narration says £2,561.00")
+    if result.get("run2_risk") != "£2,851.00":
+        problems.append(f"second run ended at {result.get('run2_risk')}, narration implies £2,851.00")
+    if "approve" not in result.get("steward", "").lower():
+        problems.append(f"Steward Agent said {result.get('steward')!r}, narration says it recommends approval")
+    if problems:
+        raise SystemExit("take rejected: " + "; ".join(problems) + f". See {OUT / 'audit'}.")
 
     filters, labels = [], []
     for i, (a, b, frz) in enumerate(edl.segments):
         # fps=30 BEFORE tpad: Playwright records variable frame rate, and on a
-        # VFR stream tpad's clone silently adds nothing (measured: a 2s slice
-        # with a 3s hold came out 2.0s long without it, 5.0s with it).
+        # VFR stream tpad's clone silently adds nothing.
         f = f"[0:v]trim={a:.3f}:{b:.3f},setpts=PTS-STARTPTS,fps=30"
         if frz > 0:
             f += f",tpad=stop_mode=clone:stop_duration={frz:.3f}"
@@ -250,21 +287,7 @@ async def main() -> None:
         labels.append(f"[v{i}]")
     (OUT / "edl.json").write_text(json.dumps({"raw": str(raw_path),
                                                "segments": edl.segments}, indent=1))
-
-    # Where each narrated shot starts in the EDITED footage, for the assembler.
-    decisions = min(firsts.get(k, 1e9) for k in ("granted", "refused"))
-    raw_bounds = [
-        ("overview", marks["overview"]),
-        ("plan", firsts.get("plan", marks["run1"])),
-        ("decisions", decisions),
-        ("findings", firsts.get("finding", decisions)),
-        ("negotiate", firsts.get("escalate", firsts.get("finding", decisions))),
-        ("approve", marks["approve"]),
-        ("run2", marks["run2"]),
-        ("end", marks["end"]),
-    ]
-    shots = {name: round(edl.out_time(t), 3) for name, t in raw_bounds}
-    (OUT / "shots.json").write_text(json.dumps(shots, indent=1))
+    (OUT / "beats.json").write_text(json.dumps(beats, indent=1))
     graph = ";".join(filters) + ";" + "".join(labels) + f"concat=n={len(labels)}:v=1:a=0[out]"
     final = OUT / "walkthrough.mp4"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", raw_path,
@@ -277,18 +300,15 @@ async def main() -> None:
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "default=nw=1:nk=1", str(path)]).decode().strip())
 
-    expected = sum(b - a + f for a, b, f in edl.segments)
+    expected = edl.length()
     got = dur(final)
     if abs(got - expected) > 1.0:
         raise SystemExit(f"assembly wrong: expected {expected:.1f}s, got {got:.1f}s")
     print(json.dumps({
-        "expected_seconds": round(expected, 1),
+        "final_seconds": round(got, 1),
         "raw_seconds": round(dur(raw_path), 1),
-        "final_seconds": round(dur(final), 1),
         "waiting_cut_seconds": round(edl.cut_total, 1),
         "frames_held_seconds": round(edl.held_total, 1),
-        "segments": len(edl.segments),
-        "marks_raw": {k: round(v, 1) for k, v in marks.items()},
         "final_state": result,
         "page_errors": errors or "none",
         "output": str(final),

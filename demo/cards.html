@@ -17,7 +17,45 @@
   .links span:nth-child(odd){font-family:Archivo,sans-serif;font-weight:600;color:#7EA2E0;letter-spacing:2px;font-size:26px;align-self:center}
   .links span:nth-child(even){font-family:"IBM Plex Mono",monospace}
   .foot{margin-top:70px;font-size:24px;color:#6B7285}
+  .mark{position:absolute;top:56px;left:140px;font-family:Archivo,sans-serif;font-weight:700;font-size:24px;letter-spacing:6px;color:#fff}
+  #pain{position:relative;padding:110px 140px 90px}
+  #pain h1{font-size:64px;margin-bottom:44px}
+  .scene{display:flex;align-items:center;gap:28px;margin-bottom:46px;width:max-content}
+  .node{border:2px solid #39404F;background:#1D2431;padding:22px 28px;min-width:380px}
+  .node small{display:block;font-family:Archivo,sans-serif;font-weight:700;font-size:17px;letter-spacing:3px;color:#7EA2E0;margin-bottom:8px}
+  .node b{font-size:32px;font-weight:600}
+  .node .m{display:block;font-family:"IBM Plex Mono",monospace;font-size:20px;color:#A2AABC;margin-top:6px}
+  .node.agent{border-color:#6FC08E}
+  .node.owned{border-color:#E88686}
+  .restricted{font-family:"IBM Plex Mono",monospace;font-size:16px;color:#E88686;border:1px solid #E88686;padding:2px 8px;margin-left:10px;vertical-align:middle}
+  .arrow{font-family:"IBM Plex Mono",monospace;font-size:22px;color:#A2AABC;text-align:center}
+  .arrow i{display:block;font-style:normal;font-size:44px;color:#E8EAF1;line-height:1}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-bottom:46px}
+  .opt{border:2px solid #39404F;padding:26px 30px}
+  .opt h3{font-family:Archivo,sans-serif;font-size:32px;margin:0 0 10px}
+  .opt p{font-size:26px;margin:0 0 14px;color:#C9CFDE}
+  .opt .cost{font-size:24px;font-weight:600;color:#E88686}
+  .gap{font-size:34px;color:#fff;margin:0 0 18px}
+  .fix{font-size:30px;color:#C9CFDE;border-left:6px solid #7EA2E0;padding-left:26px}
+  .fix b{color:#fff;font-family:Archivo,sans-serif;letter-spacing:2px}
 </style></head><body>
+
+<section class="card" id="pain">
+  <div class="mark">WARRANT</div>
+  <div class="eyebrow">THE PROBLEM</div>
+  <h1 id="painHead">AI agents now do work that crosses departments.</h1>
+  <div class="scene" id="painScene">
+    <div class="node agent"><small>FINANCE</small><b>Expense Auditor agent</b><span class="m">audits 47 Q3 claims</span></div>
+    <div class="arrow"><i>&rarr;</i>needs salaries to catch<br>an overpaid allowance</div>
+    <div class="node owned"><small>PEOPLE &amp; CULTURE</small><b>Employee salaries</b><span class="restricted">RESTRICTED</span><span class="m">owned by another department</span></div>
+  </div>
+  <div class="opts">
+    <div class="opt" id="opt1"><h3>Today, option 1: over-grant it</h3><p>A shared service account that can read every salary in the company.</p><div class="cost">Far too much access. No reason on record.</div></div>
+    <div class="opt" id="opt2"><h3>Today, option 2: block it</h3><p>The agent can't check allowances against the salary band.</p><div class="cost">The overpayment goes through.</div></div>
+  </div>
+  <p class="gap" id="painGap">Neither one asks the data's owner. Neither can say why.</p>
+  <div class="fix" id="painFix"><b>WARRANT</b> &nbsp;decides every cross-department request from who owns the data, gives the reason, and lets the agent ask the owner.</div>
+</section>
 
 <section class="card" id="proof">
   <div class="eyebrow">WHY YOU CAN TRUST IT</div>

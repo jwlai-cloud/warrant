@@ -705,6 +705,7 @@
     var box = $("findings");
     var empty = box.querySelector(".empty"); if (empty) empty.remove();
     var d = el("div", "finding" + (f.evidence === "Employee.Compensation" ? " hidden-until" : ""));
+    d.setAttribute("data-claim", f.claim);
     var top = el("div", "finding-top");
     top.appendChild(el("span", "finding-id", f.claim + " · " + f.kind));
     top.appendChild(el("span", "finding-amt", money(f.amount)));
@@ -724,6 +725,7 @@
     var k = KIND[e.kind] || [e.kind, "mute"];
     var d = e.data || {};
     var li = document.createElement("li");
+    li.setAttribute("data-kind", e.kind);
     li.appendChild(el("span", "tl-t", ((e.t || 0) / 1000).toFixed(1) + "s"));
     var kd = el("span", "tl-k"); kd.appendChild(el("span", "tag " + k[1], k[0])); li.appendChild(kd);
     var body = el("div", "tl-body");

@@ -1,27 +1,258 @@
 {
-  "voice": "en-GB-Chirp3-HD-Charon",
-  "shots": [
-    {"id": "hook", "footage": "overview",
-     "text": "Companies are giving AI agents real jobs. This one audits expenses for Finance. But the evidence it needs, contracts, rosters, salaries, belongs to other departments. So who decides what an agent is allowed to see? That's WARRANT."},
-    {"id": "problem", "footage": "overview",
-     "text": "Forty-seven claims. Four checks. Only one can be done with Finance's own data. The others need data owned by Operations, and by People and Culture, including salaries, which are restricted."},
-    {"id": "plan", "footage": "plan",
-     "text": "I press Run. Nemotron reads the claims and plans the audit itself, and in its own words, it splits the requests so it never mixes data it may see with data it may not."},
-    {"id": "decisions", "footage": "decisions",
-     "text": "Every request goes to WARRANT. The roster, granted. Supplier contracts, granted. Salaries, refused, with the reason: Finance holds no grant, and People and Culture owns the data. No model makes these decisions. They come from the grant table."},
-    {"id": "findings", "footage": "findings",
-     "text": "The agent doesn't stop. It finds three real problems: a duplicate invoice, a supplier billing above contract, and a flight on a day the employee never travelled. Two and a half thousand pounds under query."},
-    {"id": "negotiate", "footage": "negotiate",
-     "text": "Six claims it couldn't check, so it drafts a grant request. That request doesn't go straight to a person. A second agent, the Steward Agent, working for People and Culture, reviews it first, and recommends approval with conditions."},
-    {"id": "approve", "footage": "approve",
-     "text": "Now the human steward reads both cases, the requester's, and their own agent's, and decides. The grant is written into the model."},
-    {"id": "reveal", "footage": "run2",
-     "text": "Run it again. Now the salary check runs, and finds a fourth problem: a two hundred and ninety pound allowance over the band cap. The refusal hadn't just left work undone. It was hiding an overpayment."},
-    {"id": "topology", "footage": "card:topology",
-     "text": "Four agents, three departments. The auditor plans and asks. The data agents hold the data, and re-check every warrant. The Steward Agent reviews requests for the owner. And WARRANT decides every one from the grant table, with no model in the decision. Nemotron runs on Nebius Token Factory, and the plane is exposed over MCP, so any agent can ask."},
-    {"id": "proof", "footage": "card:proof",
-     "text": "We red-teamed it ourselves. Forty review findings fixed, ninety tests, and our own eval caught a prompt injection, which we measured and documented instead of hiding."},
-    {"id": "close", "footage": "card:close",
-     "text": "Okta knows who the agent is. LeanIX knows who owns the data. WARRANT is the join, with agents that replan when they're told no."}
-  ]
+ "voice": "en-GB-Chirp3-HD-Charon",
+ "rate": 1.06,
+ "_doc": "One beat = one line of narration + what is on screen while it is said. 'go' moves the page first, 'spot' rings the elements the line is about, 'label' is the caption on the ring. scripts/capture_demo.py films the beats against the live console; scripts/narrate.py voices them.",
+ "beats": [
+  {
+   "id": "a1",
+   "go": "card:pain",
+   "spot": [
+    "#painHead"
+   ],
+   "label": "The problem",
+   "text": "This is WARRANT. AI agents now do real work, and that work crosses departments."
+  },
+  {
+   "id": "a2",
+   "spot": [
+    "#painScene"
+   ],
+   "label": "Finance's agent needs People & Culture's data",
+   "text": "This Finance agent audits expenses. To catch an overpaid allowance, it must check salaries, and salaries belong to People and Culture."
+  },
+  {
+   "id": "a3",
+   "spot": [
+    "#opt1"
+   ],
+   "label": "Over-grant: sees every salary",
+   "text": "Today there are two bad answers. A service account that reads every salary in the company,"
+  },
+  {
+   "id": "a4",
+   "spot": [
+    "#opt2"
+   ],
+   "label": "Block: the overpayment goes through",
+   "text": "or block it, and the overpayment goes through."
+  },
+  {
+   "id": "a5",
+   "spot": [
+    "#painGap",
+    "#painFix"
+   ],
+   "label": "Ask the owner. Keep the reason.",
+   "text": "Nobody asked the data's owner, and nobody can say why. WARRANT is the guardrail between departments."
+  },
+  {
+   "id": "b1",
+   "go": "topology",
+   "spot": [
+    {
+     "x": 50,
+     "y": 140,
+     "w": 1820,
+     "h": 765
+    }
+   ],
+   "label": "4 agents · 3 departments · 1 authorization plane",
+   "text": "Four agents, three departments, and WARRANT between them."
+  },
+  {
+   "id": "b2",
+   "spot": [
+    {
+     "x": 80,
+     "y": 215,
+     "w": 460,
+     "h": 330
+    }
+   ],
+   "label": "Expense Auditor · LangGraph · Nemotron 3 Super",
+   "text": "The Expense Auditor plans the audit with Nemotron 3 Super, and asks for every piece of data it needs."
+  },
+  {
+   "id": "b3",
+   "spot": [
+    {
+     "x": 690,
+     "y": 225,
+     "w": 540,
+     "h": 226
+    }
+   ],
+   "label": "Nano narrows · the grant table decides",
+   "text": "WARRANT answers each request. Nemotron Nano works out which data the call touches. Then the grant table decides. No model makes that call."
+  },
+  {
+   "id": "b4",
+   "spot": [
+    {
+     "x": 1380,
+     "y": 210,
+     "w": 460,
+     "h": 412
+    }
+   ],
+   "label": "Data agents re-check every warrant",
+   "text": "The data agents check the warrant again before handing anything over."
+  },
+  {
+   "id": "b5",
+   "spot": [
+    {
+     "x": 1380,
+     "y": 640,
+     "w": 460,
+     "h": 244
+    }
+   ],
+   "label": "Steward Agent recommends · a person decides",
+   "text": "When access is refused, the Steward Agent reviews the request for the data's owner, and a person decides."
+  },
+  {
+   "id": "b6",
+   "spot": [
+    {
+     "x": 60,
+     "y": 935,
+     "w": 1800,
+     "h": 95
+    }
+   ],
+   "label": "Nemotron 3 on Nebius Token Factory",
+   "text": "It all runs on NVIDIA Nemotron through Nebius Token Factory, and WARRANT is an MCP server, so any agent can ask it."
+  },
+  {
+   "id": "c1",
+   "go": "app:matrix",
+   "spot": [
+    "#matrix tbody tr:first-child"
+   ],
+   "label": "Finance's rights, set by each data owner",
+   "text": "Rights are explicit. Finance may read its claims, the contracts, and the roster."
+  },
+  {
+   "id": "c2",
+   "spot": [
+    "#matrix td[data-c='expense-management|Employee.Compensation']",
+    "#matrix thead th:nth-child(4)"
+   ],
+   "label": "Salaries: restricted · no grant",
+   "text": "Not salaries. They're restricted, and no grant means no."
+  },
+  {
+   "id": "d1",
+   "go": "view:overview",
+   "spot": [
+    "#v-overview table"
+   ],
+   "label": "47 claims · 4 checks · 3 need other departments",
+   "text": "The job: forty-seven claims, four checks. Only one can use Finance's own data."
+  },
+  {
+   "id": "d2",
+   "go": "run",
+   "spot": [
+    "#timeline"
+   ],
+   "label": "Live · Nemotron on Nebius Token Factory",
+   "text": "I press Run. This is live: the agent working, and WARRANT answering."
+  },
+  {
+   "id": "d3",
+   "spot": [
+    "#timeline li[data-kind='plan']"
+   ],
+   "label": "Nemotron's own plan",
+   "text": "Nemotron planned the audit itself, splitting its requests so it never mixes data it may see with data it may not."
+  },
+  {
+   "id": "d4",
+   "spot": [
+    "#timeline li[data-kind='granted']"
+   ],
+   "label": "Granted",
+   "text": "Roster and contracts: granted."
+  },
+  {
+   "id": "d5",
+   "spot": [
+    "#timeline li[data-kind='refused']"
+   ],
+   "label": "Refused, with the reason",
+   "text": "Salaries: refused, and the refusal says why. Finance holds no grant, and People and Culture owns the data."
+  },
+  {
+   "id": "d6",
+   "spot": [
+    "#findings"
+   ],
+   "label": "3 problems found · £2,561 under query",
+   "text": "The agent doesn't stop. With what it may see, it finds three problems: a duplicate invoice, a supplier billing over contract, and a flight on a day the employee never travelled."
+  },
+  {
+   "id": "d7",
+   "spot": [
+    "#timeline li[data-kind='escalate']"
+   ],
+   "label": "6 claims blocked → a grant request to the owner",
+   "text": "Six claims it can't check. So it drafts a grant request, addressed to the owner."
+  },
+  {
+   "id": "d8",
+   "go": "view:approvals",
+   "spot": [
+    "#reqList .review"
+   ],
+   "label": "Steward Agent's review · for the data owner",
+   "text": "Before any person sees it, the Steward Agent reviews it for People and Culture, and recommends approval."
+  },
+  {
+   "id": "d9",
+   "go": "approve",
+   "spot": [
+    "#apBanner",
+    "#reqList .req-head"
+   ],
+   "label": "Approved by a person · the grant is recorded",
+   "text": "The human steward approves. Now the grant exists, with a name against it."
+  },
+  {
+   "id": "d10",
+   "go": "rerun",
+   "spot": [
+    "#timeline"
+   ],
+   "label": "Same agent, same task, new grant",
+   "text": "Run the same audit again."
+  },
+  {
+   "id": "d11",
+   "spot": [
+    "#findings .finding[data-claim='CLM-3606']"
+   ],
+   "label": "4th problem: £290 over the salary band",
+   "text": "Now the salary check runs, and finds a fourth problem: an allowance two hundred and ninety pounds over the band. The refusal was hiding an overpayment."
+  },
+  {
+   "id": "e1",
+   "go": "card:proof",
+   "spot": [
+    "#proof ul"
+   ],
+   "label": "Measured, not claimed",
+   "text": "We red-teamed it ourselves: forty findings fixed, ninety tests, and our own eval caught a prompt injection, which we measured and published."
+  },
+  {
+   "id": "f1",
+   "go": "card:close",
+   "spot": [
+    "#close h1"
+   ],
+   "label": "Try it live",
+   "text": "WARRANT. Agents that cross a department line only with a warrant, and that replan when they're told no."
+  }
+ ]
 }

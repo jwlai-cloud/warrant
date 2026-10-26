@@ -29,11 +29,12 @@ def main() -> None:
         ["gcloud", "auth", "print-access-token", "--account", ACCOUNT]).decode().strip()
     OUT.mkdir(parents=True, exist_ok=True)
     durations = {}
-    for shot in spec["shots"]:
+    for shot in spec["beats"]:
         body = json.dumps({
             "input": {"text": shot["text"]},
             "voice": {"languageCode": voice[:5], "name": voice},
-            "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 48000},
+            "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 48000,
+                            "speakingRate": spec.get("rate", 1.0)},
         }).encode()
         req = urllib.request.Request(
             "https://texttospeech.googleapis.com/v1/text:synthesize", data=body,
