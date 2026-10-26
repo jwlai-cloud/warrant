@@ -237,7 +237,16 @@ async def demo_run():
             data={"rows": rows},
         )
 
-    state = await build_graph(call_fn).ainvoke({})
+    # The agent plans, narrows and reports with the deep tier. On the offline
+    # profile the tier is a stub that cannot plan, so the graph uses its
+    # deterministic fallbacks instead of narrating canned text.
+    llm = None
+    if _svc.config.tiers.get("deep") and _svc.config.tiers["deep"].kind != "mock":
+        async def llm(system: str, user: str, schema: dict | None = None) -> str:
+            c = await _svc.router.complete("deep", system, user, json_schema=schema)
+            return c.text
+
+    state = await build_graph(call_fn, llm=llm).ainvoke({})
 
     # The escalate branch, made durable: what the agent drafted becomes a real
     # request a steward can act on.
@@ -252,13 +261,21 @@ async def demo_run():
         except ValueError:
             pass        # already granted or already open - both fine
 
+    flagged = state.get("flagged", [])
     return {
         "results": [r for r in state.get("results", []) if "replan" not in r],
         "closed": len(state.get("closed", [])),
+        "flagged": flagged,
+        "at_risk": round(sum(f["amount"] for f in flagged), 2),
         "unresolved": len(state.get("unresolved", [])),
         "total": len(state.get("claims", [])),
         "blocked_entities": state.get("blocked_entities", []),
         "grant_requests": raised,
+        "plan": state.get("plan", []),
+        "plan_source": state.get("plan_source", ""),
+        "rationale": state.get("rationale", ""),
+        "trace": state.get("trace", []),
+        "summary": state.get("summary", ""),
         "report": state.get("report", ""),
     }
 
