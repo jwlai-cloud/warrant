@@ -22,7 +22,8 @@ Every line of narration is a **beat** in `demo/narration.json`: the line, where
 the page goes (`go`), which elements a ring highlights while it is said
 (`spot`) and the caption on the ring (`label`). The ring dims the rest of the
 screen, so a viewer's eye is where the voice is. A muted viewer still gets the
-story from the captions on the rings plus the burned-in subtitles.
+story from the captions on the rings; subtitles are not burned in (they covered
+the console) but ship as `demo-video/warrant-demo.srt` for YouTube captions.
 
 ## Pipeline
 

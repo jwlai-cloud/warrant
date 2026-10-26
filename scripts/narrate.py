@@ -31,7 +31,8 @@ def main() -> None:
     durations = {}
     for shot in spec["beats"]:
         body = json.dumps({
-            "input": {"text": shot["text"]},
+            # All-caps reads as letters ("W-A-R-R-A-N-T"); the word is spoken.
+            "input": {"text": shot["text"].replace("WARRANT", "Warrant")},
             "voice": {"languageCode": voice[:5], "name": voice},
             "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 48000,
                             "speakingRate": spec.get("rate", 1.0)},

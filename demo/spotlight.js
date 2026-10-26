@@ -64,8 +64,7 @@
     const e = document.querySelector(sel);
     if (!e) return done(false);
     const r = e.getBoundingClientRect();
-    // The bottom 190px is the subtitle band in the finished video.
-    if (r.top >= 60 && r.bottom <= innerHeight - 190) return done(false);
+    if (r.top >= 60 && r.bottom <= innerHeight - 20) return done(false);
     const finish = () => done(true);
     document.addEventListener("scrollend", finish, {once: true, capture: true});
     setTimeout(finish, 1500);

@@ -1,4 +1,4 @@
-"""Assemble the demo video: filmed beats + narration + burned-in subtitles.
+"""Assemble the demo video: filmed beats + narration, subtitles as a sidecar .srt.
 
     python3 scripts/assemble_video.py          # -> demo-video/warrant-demo.mp4
 
@@ -8,7 +8,7 @@ Inputs, produced by the other two scripts:
 
 The capture already held every beat on screen for exactly the length of its
 line, and recorded when each line starts. So assembly only lays each line of
-narration at its beat's start and burns in subtitles: nothing is sped up,
+narration at its beat's start and writes the subtitles: nothing is sped up,
 reordered or re-timed here. The result must be under the 3:00 hard limit or the
 script refuses to write it.
 """
@@ -88,12 +88,12 @@ def main() -> None:
     srt = WORK / "subs.srt"
     srt.write_text("".join(f"{n+1}\n{srt_time(a)} --> {srt_time(b)}\n{s}\n\n"
                            for n, (a, b, s) in enumerate(subs)))
+    # Subtitles are NOT burned in: they covered the console. The ring captions
+    # carry the story for a muted viewer; the .srt ships alongside for YouTube's
+    # optional closed captions.
     final = V / "warrant-demo.mp4"
-    style = ("FontName=IBM Plex Sans,Fontsize=17,PrimaryColour=&H00FFFFFF,"
-             "BackColour=&HB4161A23,BorderStyle=3,Outline=6,Shadow=0,MarginV=26")
     sh("-i", str(video), *inputs, "-filter_complex", graph,
-       "-map", "0:v", "-map", "[a]", "-vf", f"subtitles={srt}:force_style='{style}'",
-       "-c:v", "libx264", "-crf", "19", "-pix_fmt", "yuv420p", "-c:a", "aac",
+       "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
        "-b:a", "160k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(final))
     shutil.copy(srt, V / "warrant-demo.srt")
     length = dur(final)
