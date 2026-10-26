@@ -33,29 +33,64 @@ announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 ## What it does
 
-The Expense Auditor (Finance) is asked to reconcile Q3 claims. It needs data
-Operations holds. It gets part of it.
+**Live demo:** _hosted URL added at submission_ · press **Run audit**.
+
+Northwind Group's Expense Auditor (Finance) audits 47 Q3 claims worth
+£11,179.80. Four of them are wrong — and each one can only be caught with data
+**another department owns**. So before every check the agent has to ask WARRANT,
+and WARRANT decides from who owns what.
+
+| Problem | Caught with | Owned by | WARRANT |
+|---|---|---|---|
+| CLM-3141 — duplicate of CLM-3101 | `Expense.Claim` | Finance (own data) | — |
+| CLM-3132 — Meridian Travel billed £1,890 against a £1,364 contract ceiling | `Supplier.Contract` | Operations | **granted** |
+| CLM-3128 — flight booked on a day the roster shows no trip | `Employee.Roster` | People & Culture | **granted** |
+| CLM-3606 — £290 allowance against a £255 band cap | `Employee.Compensation` *(restricted)* | People & Culture | **refused** |
+
+A real run, against NVIDIA Nemotron on Nebius Token Factory:
 
 ```
-▸ expense-auditor: reconciling Q3 expense claims
-  └ three governed calls, one per thing it needs
-
-  ✓ GRANTED  warrant 02c5fcad   → inventory-reconciler, Supplier.Contract
-  ✓ GRANTED  warrant 7b1e40aa   → roster-planner, Employee.Roster
-  ✗ REFUSED  warrant c93f1120   → roster-planner, Employee.Compensation
-             restricted, stewarded by People & Culture;
-             Expense Management holds no grant to that entity
-
-  ↳ replanned: completed reconciliation on Supplier.Contract alone
-    reconciled 41 of 47 claims · 6 unresolved, all requiring salary bands
-
-  ↳ grant request drafted → People & Culture
-    "Expense Management requests read access to Employee.Compensation
-     to close 6 Q3 claims requiring salary-band verification."
+ 0.0s  task      Audit Q3 expense claims — 47 claims, £11,179.80
+ 4.6s  plan      Nemotron plans 3 requests, in its own words:
+                 "separate requests for each distinct data type to avoid mixing
+                  permissible and impermissible data"
+ 9.1s  granted   roster-planner → Employee.Roster
+20.0s  granted   inventory-reconciler → Supplier.Contract
+25.0s  refused   roster-planner → Employee.Compensation
+                 restricted, stewarded by People & Culture;
+                 Expense Management holds no grant to that entity
+25.0s  finding   CLM-3128  no rostered trip            £542.50
+25.0s  finding   CLM-3132  over contract                £1,890.00
+25.0s  finding   CLM-3141  duplicate                    £128.50
+25.0s  audit     38 verified · 3 flagged · 6 could not be checked
+32.4s  escalate  grant request drafted by Nemotron → People & Culture
+36.0s  report    £2,561.00 under query; 6 claims blocked on salary data
 ```
 
-The agent did not stop. It finished what it could reach, said exactly what it
-could not, and addressed a request to the human who can actually approve it.
+Then a person closes the loop. The People & Culture steward opens **Approvals**,
+reads Nemotron's request — who is asking, for what, and what is blocked — and
+approves it. The grant is written into the model. Run the audit again:
+
+```
+         audit     43 verified · 4 flagged · 0 blocked
+         finding   CLM-3606  allowance over band cap      £290.00
+                   — invisible until the steward said yes
+```
+
+**The refusal did not just leave work undone; it hid a real overpayment.** The
+agent didn't stop when it was refused. It finished everything it was allowed to
+check, said exactly what it couldn't, and sent the request to the one person who
+could unblock it.
+
+Three behaviours are what make it an agent rather than a script, and each is
+tested:
+
+- **Nemotron plans.** It reads the claims and a directory of who holds what, and
+  writes every request's purpose itself.
+- **It narrows when refused.** A request that mixes permitted and refused data is
+  refused whole; the agent rewrites it to ask only for the permitted part.
+- **It closes its own gaps.** If a plan forgets a kind of data, the claims that
+  needed it get noticed and the data requested — which we saw happen live.
 
 Every decision — granted or refused — is written to an append-only audit log.
 

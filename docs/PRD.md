@@ -145,7 +145,7 @@ expense-auditor ──▶ inventory-reconciler   "supplier contract rates"     G
                                             Employee.Compensation (restricted)
                                             stewarded by People & Culture
                                             Expense Management holds no grant
-   replan ──▶ degrade   41 of 47 closed
+   replan ──▶ degrade   38 of 47 verified, 3 flagged (£2,561 under query)
           ──▶ escalate  grant request → People & Culture, blocking 6 claims
           ──▶ record    refused path logged; next run does not retry blind
 ```
@@ -153,7 +153,7 @@ expense-auditor ──▶ inventory-reconciler   "supplier contract rates"     G
 ### 6.2 The loop that makes it a product
 
 ```
-refusal ▶ grant request ▶ steward approves ▶ grant written to model ▶ re-run ▶ 47 of 47
+refusal ▶ grant request ▶ steward approves ▶ grant written to model ▶ re-run ▶ 43 verified, a 4th problem found
 ```
 
 Without the approval step this is a reporting tool. With it, it is a workflow.
