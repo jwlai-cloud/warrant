@@ -11,3 +11,4 @@ audit/*.jsonl
 .DS_Store
 .pytest_cache/
 audit/grant_requests.jsonl
+demo-video/

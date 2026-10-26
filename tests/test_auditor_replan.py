@@ -203,3 +203,19 @@ async def test_a_plan_that_forgets_some_data_is_caught_and_asked_for():
     assert gap and gap[0]["data"]["gap"] == COMP
     assert len(s["grant_requests"]) == 1, "the refused gap was not escalated"
     assert s["grant_requests"][0]["blocking"] == 6
+
+
+async def test_concurrent_requests_lose_no_events():
+    """Requests run concurrently and finish out of order. Each one must still
+    leave exactly one granted/refused event - the old per-call copy of the trace
+    dropped events as soon as calls overlapped."""
+    import asyncio as _a
+    base = _call_fn()
+    delays = {"supplier": 0.05, "roster": 0.01, "compensation": 0.03}
+    async def slow(callee, purpose):
+        await _a.sleep(next((d for k, d in delays.items() if k in purpose.lower()), 0.02))
+        return await base(callee, purpose)
+    s = await build_graph(slow).ainvoke({})
+    outcomes = [e for e in s["trace"] if e["kind"] in ("granted", "refused")]
+    assert len(outcomes) == len(s["plan"]), [e["text"] for e in outcomes]
+    assert len(s["flagged"]) == 3

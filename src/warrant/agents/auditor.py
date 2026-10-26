@@ -36,6 +36,7 @@ deterministic equivalent, so the graph is fully testable without inference.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from typing import Any, Awaitable, Callable, TypedDict
@@ -273,14 +274,18 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None,
     real inference in the console, and against stubs in tests."""
     t0 = time.perf_counter()
 
+    # One log for the whole run. Events used to be appended to a copy of
+    # state["trace"]; that is fine sequentially and silently drops events once
+    # requests run concurrently, because each call copies the same base list.
+    log: list[dict] = []
+
     def ev(state: AuditState, kind: str, text: str, **data) -> list[dict]:
-        trace = list(state.get("trace", []))
         event = {"t": round((time.perf_counter() - t0) * 1000), "kind": kind,
                  "text": text, **({"data": data} if data else {})}
-        trace.append(event)
+        log.append(event)
         if on_event is not None:
             on_event(event)          # live stream to the console
-        return trace
+        return list(log)
 
     async def ask(system: str, user: str, schema: dict | None = None) -> str | None:
         if llm is None:
@@ -357,12 +362,15 @@ def build_graph(call_fn: CallFn, llm: LLM | None = None,
         return s
 
     async def gather(state: AuditState) -> AuditState:
+        """All planned requests at once. They are independent, each costs two
+        model calls (classify, justify), and sequentially a 4-request plan spent
+        most of the run waiting. Results land in whatever order WARRANT answers."""
         results, gathered, refusals = [], dict(state["gathered"]), []
         s = dict(state)
-        for step in state["plan"]:
-            s.update(await call(s, step, results, gathered, refusals))
+        await asyncio.gather(*(call(s, step, results, gathered, refusals)
+                               for step in state["plan"]))
         return {"results": results, "gathered": gathered, "refusals": refusals,
-                "trace": s["trace"]}
+                "trace": list(log)}
 
     async def reconcile(state: AuditState) -> AuditState:
         a = audit_claims(state["claims"], state["gathered"])
