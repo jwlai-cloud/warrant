@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>WARRANT topology</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html,body{margin:0;background:#EEF0F4}
+  svg{display:block}
+  .t{font-family:"IBM Plex Sans",sans-serif;fill:#14171F}
+  .h{font-family:Archivo,sans-serif;font-weight:700;fill:#14171F}
+  .m{font-family:"IBM Plex Mono",monospace;fill:#4A5162}
+  .lane{fill:none;stroke:#B4BAC9;stroke-width:1.5;stroke-dasharray:6 6}
+  .lbl{font-family:Archivo,sans-serif;font-weight:700;font-size:15px;letter-spacing:2px;fill:#858CA0}
+  .box{fill:#FFFFFF;stroke:#14171F;stroke-width:1.6}
+  .agent{fill:#FFFFFF;stroke:#2F6B47;stroke-width:2.6}
+  .data{fill:#FFFFFF;stroke:#B4BAC9;stroke-width:1.6}
+  .plane{fill:#E2E9F6;stroke:#1D3B73;stroke-width:2}
+  .decide{fill:#FFFFFF;stroke:#1D3B73;stroke-width:3}
+  .human{fill:#FAEEDA;stroke:#8A5A17;stroke-width:2}
+  .ln{stroke:#14171F;stroke-width:2.2;fill:none}
+  .lnr{stroke:#A62B2B;stroke-width:2.4;fill:none}
+  .lna{stroke:#1D3B73;stroke-width:2.4;fill:none}
+  .lnd{stroke:#4A5162;stroke-width:2;fill:none;stroke-dasharray:6 5}
+  .al{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600}
+  .chip{fill:#FFFFFF;stroke:#B4BAC9}
+</style></head><body>
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" role="img"
+     aria-label="WARRANT topology: four agents in three departments; every cross-department request is decided by the WARRANT authorization plane with no model in the decision.">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#14171F"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#A62B2B"/></marker>
+    <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1D3B73"/></marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5162"/></marker>
+  </defs>
+
+  <!-- title -->
+  <text class="h" x="70" y="78" font-size="44">How the agents work together</text>
+  <text class="t" x="70" y="118" font-size="21" fill="#4A5162">Northwind Group · 3 departments · 4 agents · 1 authorization plane — every cross-department request is decided by WARRANT, with no model in the decision</text>
+
+  <!-- ============ FINANCE ============ -->
+  <rect class="lane" x="50" y="160" width="520" height="745"/>
+  <text class="lbl" x="70" y="190">FINANCE</text>
+  <rect class="agent" x="80" y="215" width="460" height="255"/>
+  <text class="h" x="104" y="256" font-size="27">Expense Auditor</text>
+  <text class="m" x="104" y="286" font-size="16">planning agent · LangGraph</text>
+  <text class="t" x="104" y="326" font-size="18">Nemotron <tspan font-weight="600">plans</tspan> the audit and writes each request</text>
+  <text class="t" x="104" y="356" font-size="18"><tspan font-weight="600">Narrows</tspan> a refused request and retries</text>
+  <text class="t" x="104" y="386" font-size="18"><tspan font-weight="600">Notices</tspan> data its plan forgot</text>
+  <text class="t" x="104" y="416" font-size="18"><tspan font-weight="600">Drafts</tspan> the grant request and the report</text>
+  <text class="m" x="104" y="452" font-size="15">checks: duplicates · contract · roster · band</text>
+  <rect class="data" x="80" y="490" width="460" height="54"/>
+  <text class="m" x="104" y="523" font-size="15">holds Expense.Claim · 47 claims · £11,179.80</text>
+
+  <!-- ============ WARRANT ============ -->
+  <rect class="plane" x="660" y="160" width="600" height="745"/>
+  <text class="h" x="684" y="200" font-size="25">WARRANT</text>
+  <text class="m" x="842" y="200" font-size="16">authorization plane · FastAPI · MCP</text>
+
+  <rect class="box" x="690" y="225" width="540" height="96"/>
+  <text class="h" x="712" y="258" font-size="19">1 · classify</text>
+  <text class="t" x="712" y="286" font-size="17">Nemotron 3 Nano 30B: which data does this purpose touch?</text>
+  <text class="m" x="712" y="309" font-size="14">can only narrow the callee's declared data, never widen it</text>
+
+  <rect class="decide" x="690" y="341" width="540" height="110"/>
+  <text class="h" x="712" y="377" font-size="22" fill="#1D3B73">2 · decide — no model</text>
+  <text class="t" x="712" y="406" font-size="17">Grant table: who owns the data, who was granted access.</text>
+  <text class="t" x="712" y="432" font-size="17">Deterministic, reproducible, auditable. Fails closed.</text>
+
+  <rect class="box" x="690" y="471" width="540" height="78"/>
+  <text class="h" x="712" y="503" font-size="19">3 · explain</text>
+  <text class="t" x="712" y="531" font-size="17">Nemotron 3 Super 120B writes the reason a person reads</text>
+
+  <rect class="box" x="690" y="569" width="540" height="66"/>
+  <text class="h" x="712" y="609" font-size="19">audit log</text>
+  <text class="t" x="840" y="609" font-size="17">every decision, granted or refused</text>
+
+  <rect class="box" x="690" y="760" width="540" height="110"/>
+  <text class="h" x="712" y="796" font-size="21">Approvals queue</text>
+  <text class="t" x="712" y="826" font-size="17">grant requests, routed to the data's steward</text>
+  <text class="m" x="712" y="852" font-size="14">a request must follow a recorded denial</text>
+
+  <!-- ============ OPERATIONS ============ -->
+  <rect class="lane" x="1350" y="160" width="520" height="245"/>
+  <text class="lbl" x="1370" y="190">OPERATIONS</text>
+  <rect class="data" x="1380" y="210" width="460" height="170" stroke="#14171F"/>
+  <text class="h" x="1404" y="250" font-size="24">Inventory Reconciler</text>
+  <text class="m" x="1404" y="278" font-size="16">data agent</text>
+  <text class="m" x="1404" y="312" font-size="16">holds  Supplier.Contract</text>
+  <text class="m" x="1468" y="336" font-size="16">Inventory.StockLevel</text>
+  <text class="t" x="1404" y="366" font-size="17">re-checks every warrant before serving</text>
+
+  <!-- ============ PEOPLE & CULTURE ============ -->
+  <rect class="lane" x="1350" y="425" width="520" height="480"/>
+  <text class="lbl" x="1370" y="455">PEOPLE &amp; CULTURE</text>
+  <rect class="data" x="1380" y="472" width="460" height="150" stroke="#14171F"/>
+  <text class="h" x="1404" y="510" font-size="24">Roster Planner</text>
+  <text class="m" x="1404" y="538" font-size="16">data agent</text>
+  <text class="m" x="1404" y="568" font-size="16">holds  Employee.Roster</text>
+  <text class="m" x="1468" y="592" font-size="16" fill="#8C2F2F">Employee.Compensation · restricted</text>
+  <rect class="agent" x="1380" y="640" width="460" height="140"/>
+  <text class="h" x="1404" y="678" font-size="24">Steward Agent</text>
+  <text class="m" x="1404" y="704" font-size="16">reviewing agent · Nemotron 3 Super</text>
+  <text class="t" x="1404" y="734" font-size="17">reviews each grant request for the owner,</text>
+  <text class="t" x="1404" y="760" font-size="17">recommends — <tspan font-weight="600">never grants</tspan></text>
+  <rect class="human" x="1380" y="798" width="460" height="86"/>
+  <text class="h" x="1404" y="834" font-size="22" fill="#8A5A17">Human steward</text>
+  <text class="t" x="1404" y="864" font-size="17">reads both cases and decides</text>
+
+  <!-- ============ FLOWS ============ -->
+  <!-- 1 request warrant -->
+  <path class="ln" d="M540 270 L686 270" marker-end="url(#a)"/>
+  <text class="al" x="552" y="258" fill="#14171F">① ask</text>
+  <!-- refused back -->
+  <path class="lnr" d="M690 420 L544 420" marker-end="url(#ar)"/>
+  <text class="al" x="572" y="404" fill="#A62B2B" font-size="15">② refused</text>
+  <text class="m" x="574" y="442" font-size="13" fill="#A62B2B">+ reason</text>
+  <!-- 3 call with warrant: over the plane -->
+  <path class="ln" d="M440 215 C 440 150, 1500 150, 1560 206" marker-end="url(#a)"/>
+  <text class="al" x="760" y="148" fill="#14171F">③ call the data agent directly, presenting the warrant</text>
+  <!-- 4 verify -->
+  <path class="lnd" d="M1380 300 L1234 300" marker-end="url(#ad)"/>
+  <path class="lnd" d="M1380 540 L1234 540" marker-end="url(#ad)"/>
+  <text class="al" x="1262" y="292" fill="#4A5162" font-size="14">④ verify</text>
+  <text class="al" x="1262" y="532" fill="#4A5162" font-size="14">④ verify</text>
+  <!-- 5 grant request -->
+  <path class="lna" d="M300 544 L300 815 L686 815" marker-end="url(#aa)"/>
+  <text class="al" x="316" y="800" fill="#1D3B73">⑤ grant request</text>
+  <!-- 6 review -->
+  <path class="lna" d="M1230 785 C 1300 785, 1300 710, 1376 710" marker-end="url(#aa)"/>
+  <text class="al" x="1268" y="812" fill="#1D3B73" font-size="14">⑥ review</text>
+  <!-- 7 decide -> grant -->
+  <path class="lna" d="M1380 860 L1234 860" marker-end="url(#aa)"/>
+  <text class="al" x="1270" y="851" fill="#1D3B73" font-size="14">⑦ approve</text>
+
+  <!-- ============ STACK ============ -->
+  <text class="lbl" x="70" y="960">BUILT WITH</text>
+  <g font-family="IBM Plex Mono, monospace" font-size="17" font-weight="500" fill="#14171F">
+    <rect class="chip" x="70" y="978" width="370" height="46"/><text x="88" y="1008">NVIDIA Nemotron 3 · Nano + Super</text>
+    <rect class="chip" x="452" y="978" width="262" height="46"/><text x="470" y="1008">Nebius Token Factory</text>
+    <rect class="chip" x="726" y="978" width="140" height="46"/><text x="744" y="1008">LangGraph</text>
+    <rect class="chip" x="878" y="978" width="300" height="46"/><text x="896" y="1008">FastAPI · server-sent events</text>
+    <rect class="chip" x="1190" y="978" width="222" height="46"/><text x="1208" y="1008">MCP server (2.x)</text>
+    <rect class="chip" x="1424" y="978" width="236" height="46"/><text x="1442" y="1008">Hugging Face Spaces</text>
+    <rect class="chip" x="1672" y="978" width="178" height="46"/><text x="1690" y="1008">90 tests</text>
+  </g>
+</svg>
+</body></html>
