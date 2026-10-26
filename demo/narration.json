@@ -1,0 +1,27 @@
+{
+  "voice": "en-GB-Chirp3-HD-Charon",
+  "shots": [
+    {"id": "hook", "footage": "overview",
+     "text": "Companies are giving AI agents real jobs. This one audits expenses for Finance. But the evidence it needs, contracts, rosters, salaries, belongs to other departments. So who decides what an agent is allowed to see? That's WARRANT."},
+    {"id": "problem", "footage": "overview",
+     "text": "Forty-seven claims. Four checks. Only one can be done with Finance's own data. The others need data owned by Operations, and by People and Culture, including salaries, which are restricted."},
+    {"id": "plan", "footage": "plan",
+     "text": "I press Run. Nemotron reads the claims and plans the audit itself, and in its own words, it splits the requests so it never mixes data it may see with data it may not."},
+    {"id": "decisions", "footage": "decisions",
+     "text": "Every request goes to WARRANT. The roster, granted. Supplier contracts, granted. Salaries, refused, with the reason: Finance holds no grant, and People and Culture owns the data. No model makes these decisions. They come from the grant table."},
+    {"id": "findings", "footage": "findings",
+     "text": "The agent doesn't stop. It finds three real problems: a duplicate invoice, a supplier billing above contract, and a flight on a day the employee never travelled. Two and a half thousand pounds under query."},
+    {"id": "negotiate", "footage": "negotiate",
+     "text": "Six claims it couldn't check, so it drafts a grant request. That request doesn't go straight to a person. A second agent, the Steward Agent, working for People and Culture, reviews it first, and recommends approval with conditions."},
+    {"id": "approve", "footage": "approve",
+     "text": "Now the human steward reads both cases, the requester's, and their own agent's, and decides. The grant is written into the model."},
+    {"id": "reveal", "footage": "run2",
+     "text": "Run it again. Now the salary check runs, and finds a fourth problem: a two hundred and ninety pound allowance over the band cap. The refusal hadn't just left work undone. It was hiding an overpayment."},
+    {"id": "topology", "footage": "card:topology",
+     "text": "Four agents, three departments. The auditor plans and asks. The data agents hold the data, and re-check every warrant. The Steward Agent reviews requests for the owner. And WARRANT decides every one from the grant table, with no model in the decision. Nemotron runs on Nebius Token Factory, and the plane is exposed over MCP, so any agent can ask."},
+    {"id": "proof", "footage": "card:proof",
+     "text": "We red-teamed it ourselves. Forty review findings fixed, ninety tests, and our own eval caught a prompt injection, which we measured and documented instead of hiding."},
+    {"id": "close", "footage": "card:close",
+     "text": "Okta knows who the agent is. LeanIX knows who owns the data. WARRANT is the join, with agents that replan when they're told no."}
+  ]
+}

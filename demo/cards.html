@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>WARRANT video cards</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html,body{margin:0}
+  .card{width:1920px;height:1080px;box-sizing:border-box;padding:120px 140px;display:none;
+    background:#161A23;color:#E8EAF1;font-family:"IBM Plex Sans",sans-serif}
+  .card.on{display:flex;flex-direction:column;justify-content:center}
+  .eyebrow{font-family:Archivo,sans-serif;font-weight:700;font-size:22px;letter-spacing:5px;color:#7EA2E0;margin-bottom:28px}
+  h1{font-family:Archivo,sans-serif;font-weight:700;font-size:76px;line-height:1.05;margin:0 0 36px;letter-spacing:-1px}
+  ul{list-style:none;margin:0;padding:0;display:grid;gap:22px}
+  li{font-size:36px;padding-left:34px;border-left:5px solid #2F6B47}
+  li b{color:#fff}
+  li.warn{border-left-color:#D0A257}
+  .tag{font-size:40px;color:#A2AABC;max-width:1500px;line-height:1.35;margin:0 0 60px}
+  .links{display:grid;grid-template-columns:auto 1fr;gap:18px 40px;font-size:36px}
+  .links span:nth-child(odd){font-family:Archivo,sans-serif;font-weight:600;color:#7EA2E0;letter-spacing:2px;font-size:26px;align-self:center}
+  .links span:nth-child(even){font-family:"IBM Plex Mono",monospace}
+  .foot{margin-top:70px;font-size:24px;color:#6B7285}
+</style></head><body>
+
+<section class="card" id="proof">
+  <div class="eyebrow">WHY YOU CAN TRUST IT</div>
+  <h1>Red-teamed by its builders</h1>
+  <ul>
+    <li><b>Deterministic authorization</b> — no model in the decision</li>
+    <li><b>NVIDIA Nemotron 3</b> Nano 30B + Super 120B on <b>Nebius Token Factory</b></li>
+    <li><b>Adversarial review:</b> 40 confirmed findings, all fixed</li>
+    <li><b>90 tests</b> · classifier eval reports recall first</li>
+    <li class="warn"><b>A prompt injection, found by our own eval</b> — measured, instrumented, documented</li>
+  </ul>
+</section>
+
+<section class="card" id="close">
+  <div class="eyebrow">WARRANT</div>
+  <h1>Agents that can't cross a department line without a warrant — and replan when they're refused.</h1>
+  <div class="links">
+    <span>LIVE DEMO</span><span id="demoUrl">huggingface.co/spaces/…/warrant</span>
+    <span>CODE</span><span>github.com/jwlai-cloud/warrant</span>
+  </div>
+  <div class="foot">Nebius × NVIDIA Global AI Hackathon 2026 · Best Apps and Agents</div>
+</section>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  document.getElementById(q.get("card") || "proof").classList.add("on");
+  if (q.get("url")) document.getElementById("demoUrl").textContent = q.get("url");
+</script>
+</body></html>

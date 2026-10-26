@@ -38,9 +38,10 @@ W, H = 1920, 1080
 
 # Seconds each event stays on screen, matched to docs/VIDEO.md narration.
 RUN1_DWELL = {"task": 3, "plan": 12, "granted": 7, "refused": 10, "replan": 6,
-              "finding": 4.5, "audit": 2, "escalate": 9, "report": 3}
+              "finding": 4.5, "audit": 2, "escalate": 7, "report": 3, "steward": 11}
 RUN2_DWELL = {"task": 1, "plan": 2.5, "granted": 1.5, "refused": 1.5, "replan": 1.5,
-              "finding": 2.5, "audit": 1.5, "escalate": 1.5, "report": 1.5}
+              "finding": 2.5, "audit": 1.5, "escalate": 1.5, "report": 1.5,
+              "steward": 1.5}
 BATCH_CAP = 14       # a burst of simultaneous events never holds longer than this
 
 
@@ -83,9 +84,23 @@ class EDL:
             self.segments[-1][2] += seconds
             self.held_total += seconds
 
+    def out_time(self, t: float) -> float:
+        """Map a raw-recording time to its time in the edited output. A time
+        inside a cut maps to where the next kept segment starts."""
+        acc = 0.0
+        for a, b, frz in self.segments:
+            if t < a:
+                return acc
+            if t <= b:
+                return acc + (t - a)
+            acc += (b - a) + frz
+        return acc
 
-async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict):
-    """Press a run button, film the trace arriving, then pace it."""
+
+async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict,
+                   firsts: dict | None = None):
+    """Press a run button, film the trace arriving, then pace it. `firsts`
+    receives the raw time each kind of event first appeared."""
     await page.click(button)
     click_t = edl.now()
     edl.keep_until(click_t)
@@ -102,6 +117,10 @@ async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict):
         await asyncio.sleep(0.12)
     await asyncio.sleep(1.0)
     end_t = edl.now()
+    if firsts is not None:
+        for t, kinds in arrivals:
+            for k in kinds:
+                firsts.setdefault(k, t)
 
     if not arrivals:
         edl.keep_until(end_t)
@@ -115,7 +134,11 @@ async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict):
             edl.keep_until(t + want)
             edl.skip_until(nxt)
         else:
-            stop = max(t + 0.1, nxt - 0.25)   # freeze before the next one paints
+            # Freeze well before the next batch: polling notices a batch ~0.1-0.3s
+            # after it starts painting, and rows fade in over 0.35s. Freezing at
+            # nxt - 0.25 caught the refusal half-faded, held under the line
+            # "Salaries, refused".
+            stop = max(t + 0.1, nxt - 0.7)
             edl.keep_until(stop)
             edl.freeze(want - (stop - t))
             edl.skip_until(nxt)
@@ -124,7 +147,7 @@ async def run_live(page, edl: EDL, button: str, done_text: str, dwell: dict):
 
 async def main() -> None:
     OUT.mkdir(exist_ok=True)
-    for d in ("audit", "raw"):
+    for d in ("audit", "raw"):          # cleared at the START of a take, not the end
         shutil.rmtree(OUT / d, ignore_errors=True)
     server = subprocess.Popen(
         [str(ROOT / ".venv/bin/python"), "-m", "uvicorn", "warrant.api.app:app",
@@ -161,7 +184,9 @@ async def main() -> None:
 
             # shots 3-7 (0:30-1:35): the first run, live
             marks["run1"] = edl.now()
-            await run_live(page, edl, "#ovRun", "verified", RUN1_DWELL)
+            firsts: dict[str, float] = {}
+            await run_live(page, edl, "#ovRun", "verified", RUN1_DWELL, firsts)
+            run1_risk = await page.inner_text("#riskChip")
             await page.evaluate("() => document.querySelector('#summaryBox').scrollIntoView({behavior: 'smooth', block: 'center'})")
             await hold(4)
 
@@ -187,14 +212,31 @@ async def main() -> None:
             await hold(4)
             marks["end"] = edl.now()
 
-            result = {"risk": await page.inner_text("#kRisk"),
+            result = {"run1_risk": run1_risk,
+                      "risk": await page.inner_text("#kRisk"),
                       "checks": [await page.inner_text(f"#ovC{i}") for i in range(1, 5)]}
             raw_path = await page.video.path()
             await ctx.close()
             await browser.close()
     finally:
         server.terminate()
-        shutil.rmtree(OUT / "audit", ignore_errors=True)
+        # The audit log is KEPT: when a take comes out wrong it is the only
+        # record of what the agent actually asked for and what WARRANT decided.
+
+    # The narration states these figures. A take that ends anywhere else would
+    # put a wrong number on screen under a voice saying the right one, so it is
+    # rejected rather than assembled. Classification varies run to run (see
+    # ADR-0009), so an occasional take differs; re-run the capture.
+    expected_risk = "£2,851.00"
+    if result["run1_risk"] != "£2,561.00":
+        raise SystemExit(f"take rejected: first run ended at {result['run1_risk']}, "
+                         f"narration expects £2,561.00. See {OUT / 'audit'}.")
+    if result["risk"] != expected_risk or any("FLAGGED" not in c.upper()
+                                               for c in result["checks"]):
+        raise SystemExit(
+            f"take rejected: ended at {result['risk']} with checks {result['checks']}, "
+            f"narration expects {expected_risk} and all four checks flagged. "
+            f"See {OUT / 'audit'} for what happened; re-run to take again.")
 
     filters, labels = [], []
     for i, (a, b, frz) in enumerate(edl.segments):
@@ -208,6 +250,21 @@ async def main() -> None:
         labels.append(f"[v{i}]")
     (OUT / "edl.json").write_text(json.dumps({"raw": str(raw_path),
                                                "segments": edl.segments}, indent=1))
+
+    # Where each narrated shot starts in the EDITED footage, for the assembler.
+    decisions = min(firsts.get(k, 1e9) for k in ("granted", "refused"))
+    raw_bounds = [
+        ("overview", marks["overview"]),
+        ("plan", firsts.get("plan", marks["run1"])),
+        ("decisions", decisions),
+        ("findings", firsts.get("finding", decisions)),
+        ("negotiate", firsts.get("escalate", firsts.get("finding", decisions))),
+        ("approve", marks["approve"]),
+        ("run2", marks["run2"]),
+        ("end", marks["end"]),
+    ]
+    shots = {name: round(edl.out_time(t), 3) for name, t in raw_bounds}
+    (OUT / "shots.json").write_text(json.dumps(shots, indent=1))
     graph = ";".join(filters) + ";" + "".join(labels) + f"concat=n={len(labels)}:v=1:a=0[out]"
     final = OUT / "walkthrough.mp4"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", raw_path,
