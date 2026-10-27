@@ -413,6 +413,32 @@
     .caption{margin-left:0}
     .field+.field{padding-left:0;border-left:0}
   }
+
+  /* ---- guided tour + help ---- */
+  .tour-ring{position:fixed;z-index:900;pointer-events:none;border-radius:12px;opacity:0;
+    box-shadow:0 0 0 3px var(--gold),0 0 24px 4px rgba(226,182,85,.55),0 0 0 9999px rgba(20,32,74,.45);
+    transition:left .4s cubic-bezier(.2,.8,.2,1),top .4s cubic-bezier(.2,.8,.2,1),
+      width .4s cubic-bezier(.2,.8,.2,1),height .4s cubic-bezier(.2,.8,.2,1),opacity .3s}
+  .tour-card{position:fixed;z-index:901;width:min(380px,calc(100vw - 32px));box-sizing:border-box;
+    background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-top:4px solid var(--gold);
+    border-radius:14px;padding:16px 18px;box-shadow:0 24px 48px -18px rgba(20,32,74,.55)}
+  .tour-card h3{margin:6px 0 6px;font:600 23px/1.15 var(--serif)}
+  .tour-card p{margin:0 0 14px;font:400 14.5px/1.55 var(--sans);color:var(--ink-soft)}
+  .tour-top{display:flex;justify-content:space-between;align-items:center}
+  .tour-n{font:700 12px var(--mono);color:var(--gold-ink);letter-spacing:.06em}
+  .tour-x{border:0;background:none;font:500 13px var(--sans);color:var(--ink-faint);cursor:pointer;
+    padding:6px;text-decoration:underline}
+  .tour-row{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .tour-hint{font:italic 500 15px var(--serif);color:var(--gold-ink);margin-right:auto}
+  button.help{position:relative;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--blue);
+    background:var(--surface);color:var(--blue);font:700 13px/1 var(--sans);cursor:help;padding:0;
+    vertical-align:middle;margin-left:8px}
+  button.help::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 10px);
+    transform:translateX(-50%);width:300px;z-index:50;padding:12px 14px;border-radius:10px;
+    background:var(--ink);color:var(--cream);font:400 13.5px/1.5 var(--sans);text-align:left;
+    letter-spacing:0;text-transform:none;white-space:normal;opacity:0;pointer-events:none;
+    transition:opacity .15s;box-shadow:0 14px 30px -12px rgba(20,32,74,.6)}
+  button.help:hover::after,button.help:focus-visible::after{opacity:1}
 </style>
 </head>
 <body class="is-home">
@@ -535,7 +561,7 @@
     </section>
 
     <section class="view" id="v-overview">
-      <div class="view-head"><h1>Overview</h1>
+      <div class="view-head"><h1>Overview<button class="help" type="button" aria-label="What is this?" data-tip="This page shows one audit: which checks need which department's data, and what each one found. A refusal here is not an incident. It is the control working.">?</button></h1>
         <p>Cross-boundary agent traffic. A refusal is not an incident; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
       <div class="banner" id="ovBanner" hidden></div>
       <div class="panel">
@@ -569,7 +595,7 @@
     </section>
 
     <section class="view" id="v-matrix">
-      <div class="view-head"><h1>Grant Matrix</h1>
+      <div class="view-head"><h1>Grant Matrix<button class="help" type="button" aria-label="What is this?" data-tip="A grant lets a capability read one data entity. Only the department that owns the data can give one. An empty cell means no grant, so WARRANT refuses.">?</button></h1>
         <p>Business capability &times; data entity, read live from the architecture model. A grant is an explicit act by a named owner; its absence is a denial.</p></div>
       <div class="panel">
         <div class="panel-head"><h2>Capabilities &times; data entities</h2><span class="chip" id="mxCount">loading</span></div>
@@ -583,13 +609,13 @@
     </section>
 
     <section class="view" id="v-fleet">
-      <div class="view-head"><h1>Agent Fleet</h1>
+      <div class="view-head"><h1>Agent Fleet<button class="help" type="button" aria-label="What is this?" data-tip="Four agents. The Expense Auditor plans and asks. Three data agents hold each department's data, and each one checks the warrant before it hands data over.">?</button></h1>
         <p>Every agent is registered against the capability it serves and the data entities it declares. An unregistered agent has no authority at all; WARRANT fails closed.</p></div>
       <div class="fleet" id="fleet"></div>
     </section>
 
     <section class="view" id="v-runs">
-      <div class="view-head"><h1>Runs</h1>
+      <div class="view-head"><h1>Runs<button class="help" type="button" aria-label="What is this?" data-tip="A warrant is a signed, single-use permission for one agent to read named data from another department. WARRANT issues one only when a grant covers the request. No warrant, no data.">?</button></h1>
         <p>Nemotron plans the audit and writes every request. WARRANT decides each one from the architecture model, with no model in that decision. A refusal comes back as reasons the agent replans around, not an error.</p></div>
       <div class="panel">
         <div class="panel-head"><h2>expense-auditor &middot; Q3 audit</h2>
@@ -618,14 +644,14 @@
     </section>
 
     <section class="view" id="v-approvals">
-      <div class="view-head"><h1>Approvals</h1>
+      <div class="view-head"><h1>Approvals<button class="help" type="button" aria-label="What is this?" data-tip="When an agent is refused, it can ask the data owner for a grant. The Steward Agent reviews the request and recommends; only a person can approve it.">?</button></h1>
         <p>Grant requests raised by agents, addressed to the organisation unit that stewards the data. Approving one writes a grant into the model; the next run resolves without a refusal.</p></div>
       <div class="banner" id="apBanner" hidden></div>
       <div id="reqList"></div>
     </section>
 
     <section class="view" id="v-audit">
-      <div class="view-head"><h1>Audit</h1>
+      <div class="view-head"><h1>Audit<button class="help" type="button" aria-label="What is this?" data-tip="Every decision is logged, granted or refused, with its reason. The log is also the warrant store: data agents check a warrant against it before handing data over.">?</button></h1>
         <p>Append-only. Every decision, granted or refused, with the entity it concerned and the inference tier that classified it.</p></div>
       <div class="panel">
         <div class="panel-head"><h2>Decision log</h2>
@@ -652,7 +678,7 @@
   // recorded live run in replay.json, played back here; it spends nothing and
   // every visitor gets their own copy, so one visitor's approval never
   // changes what the next one sees.
-  var MODE = "live", KEY = "", REPLAY = null, PHASE = 0;
+  var MODE = "live", KEY = "", REPLAY = null, PHASE = 0, RUNS_DONE = 0;
   try { KEY = new URLSearchParams(location.search).get("key") || localStorage.getItem("warrantKey") || ""; } catch (e) {}
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c;
@@ -693,7 +719,7 @@
     b.addEventListener("click", function () { show(b.getAttribute("data-go")); });
   });
   // The tour engine is added later; for now the tour opens the console.
-  $("tourStart").addEventListener("click", function () { show("overview"); });
+  $("tourStart").addEventListener("click", function () { window.__warrant.startTour(); });
   $("brandHome").addEventListener("click", function () { show("home"); });
   window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
 
@@ -1154,6 +1180,7 @@
   }
 
   function renderOutcome(out) {
+    RUNS_DONE++;
     LAST = out;
     var kinds = {};
     (out.flagged || []).forEach(function (f) { kinds[f.kind] = (kinds[f.kind] || 0) + 1; addFinding(f); });
@@ -1255,7 +1282,8 @@
   $("runBtn").addEventListener("click", run);
   $("ovRun").addEventListener("click", run);
 
-  $("resetBtn").addEventListener("click", async function () {
+  $("resetBtn").addEventListener("click", resetDemo);
+  async function resetDemo() {
     if (MODE === "replay") {
       PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
     } else await api("/v1/demo/reset", { method: "POST" });
@@ -1270,7 +1298,7 @@
     ["ovC1", "ovC2", "ovC3", "ovC4"].forEach(function (id) { checkResult(id, el("span", "tag mute", "not run")); });
     $("kRisk").textContent = "—";
     await loadModel(); await loadAudit(); await loadRequests();
-  });
+  }
 
   /* ---- boot ---- */
   function setMode(live, why) {
@@ -1316,7 +1344,14 @@
     await loadAudit();
     await loadRequests();
   })();
+
+  // For tour.js: what it needs to follow the story, nothing more.
+  window.__warrant = {
+    show: show, reset: resetDemo, current: function () { return CURRENT; },
+    state: function () { return { running: RUNNING, runsDone: RUNS_DONE, reqs: REQS }; }
+  };
 })();
 </script>
+<script src="/static/tour.js"></script>
 </body>
 </html>
