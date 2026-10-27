@@ -17,7 +17,7 @@ from pathlib import Path
 from huggingface_hub import HfApi
 
 ROOT = Path(__file__).resolve().parents[1]
-SECRETS = ("WARRANT_TF_API_KEY", "WARRANT_TF_BASE_URL")
+SECRETS = ("WARRANT_TF_API_KEY", "WARRANT_TF_BASE_URL", "WARRANT_JUDGE_KEY")
 
 
 def _env() -> dict[str, str]:

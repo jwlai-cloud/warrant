@@ -6,6 +6,8 @@ GET  /v1/grant-requests          - open and decided grant requests
 POST /v1/grant-requests          - a refused agent raises one
 POST /v1/grant-requests/{id}/decision - the steward approves or declines
 POST /v1/demo/run                - run the Expense Auditor against the live plane
+GET  /v1/access    - live (judge) or replay; with WARRANT_JUDGE_KEY set, every
+                     POST and the live stream need the key
 GET  /v1/audit     - the decision log
 GET  /v1/model     - the architecture model as a graph (for the UI)
 GET  /healthz      - liveness + which tier is currently serving
@@ -14,13 +16,16 @@ GET  /            - the console
 from __future__ import annotations
 
 import asyncio
+import datetime
+import hmac
 import json
+import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -45,6 +50,73 @@ app = FastAPI(title="WARRANT", version="0.1.0", lifespan=lifespan)
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+# Judge-only live runs. On the public deployment WARRANT_JUDGE_KEY is set, and
+# everything that can spend Token Factory credit - every POST under /v1/ (a
+# warrant request classifies with Nemotron, a grant request gets a Steward
+# Agent review) and the live stream - needs that key. Everyone else gets the
+# recorded live run in static/replay.json, played back in their own browser,
+# which spends nothing and touches no shared state. Unset (local dev, the video
+# capture) means open, exactly as before.
+_REPLAY = "/static/replay.json"
+_live_runs: dict[str, int] = {}
+
+
+def _judge_key() -> str:
+    return os.environ.get("WARRANT_JUDGE_KEY", "")
+
+
+def _is_judge(supplied: str | None) -> bool:
+    key = _judge_key()
+    return not key or (bool(supplied) and hmac.compare_digest(supplied.encode(), key.encode()))
+
+
+def _supplied_key(request: Request) -> str | None:
+    # A header for fetch; a query parameter because EventSource cannot set one.
+    return request.headers.get("x-warrant-key") or request.query_params.get("key")
+
+
+@app.middleware("http")
+async def judge_gate(request: Request, call_next):
+    p = request.url.path
+    spends = (request.method == "POST" and p.startswith("/v1/")) or p == "/v1/demo/stream"
+    if spends and not _is_judge(_supplied_key(request)):
+        return JSONResponse(status_code=401, content={
+            "error": "judge access code required", "replay": _REPLAY})
+    return await call_next(request)
+
+
+def _live_cap() -> int:
+    return int(os.environ.get("WARRANT_LIVE_DAILY_CAP", "40"))
+
+
+def _take_live_run() -> bool:
+    """Count a live run against today's cap. A backstop if the judge code leaks:
+    the worst case is a fixed number of runs a day, not an open meter.
+
+    ponytail: in-memory, so a restart resets it; the Token Factory spend cap is
+    the hard limit behind this one."""
+    if not _judge_key():
+        return True
+    today = datetime.date.today().isoformat()
+    used = _live_runs.get(today, 0)
+    if used >= _live_cap():
+        return False
+    _live_runs.clear()
+    _live_runs[today] = used + 1
+    return True
+
+
+@app.get("/v1/access")
+async def access(request: Request):
+    """Which mode the console should start in: live (judge, or no key
+    configured) or replay. Says nothing about the key beyond yes or no."""
+    live = _is_judge(_supplied_key(request))
+    left = (max(0, _live_cap() - _live_runs.get(datetime.date.today().isoformat(), 0))
+            if _judge_key() else None)
+    return {"live": live, "key_required": bool(_judge_key()), "runs_left_today": left,
+            "replay": _REPLAY}
 
 
 @app.get("/", include_in_schema=False)
@@ -333,6 +405,9 @@ async def demo_run():
         return blocked
     if _RUN_LOCK.locked():
         return JSONResponse(status_code=429, content={"error": "a run is already in progress"})
+    if not _take_live_run():
+        return JSONResponse(status_code=429, content={
+            "error": "today's live runs are used up", "replay": _REPLAY})
     async with _RUN_LOCK:
         return await _run_auditor()
 
@@ -347,6 +422,9 @@ async def demo_stream():
         return blocked
     if _RUN_LOCK.locked():
         return JSONResponse(status_code=429, content={"error": "a run is already in progress"})
+    if not _take_live_run():
+        return JSONResponse(status_code=429, content={
+            "error": "today's live runs are used up", "replay": _REPLAY})
 
     queue: asyncio.Queue = asyncio.Queue()
 

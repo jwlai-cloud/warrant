@@ -62,7 +62,8 @@
   .crumb b{color:var(--ink);font-weight:600}
   .env{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.08em;
     text-transform:uppercase;padding:2px 7px;border:1px solid var(--warn);color:var(--warn);
-    background:var(--warn-bg)}
+    background:var(--warn-bg);cursor:pointer}
+  .env.live{border-color:var(--ok);color:var(--ok);background:var(--ok-bg);cursor:default}
   .who{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
   .avatar{width:22px;height:22px;background:var(--accent);color:#fff;display:grid;
     place-items:center;font-size:10px;font-weight:600;font-family:Archivo,sans-serif;flex:none}
@@ -286,7 +287,7 @@
   <main class="stage">
     <div class="topbar">
       <div class="crumb">Northwind Group &rsaquo; <b id="crumbView">Overview</b></div>
-      <span class="env">demo</span>
+      <button class="env" id="modePill" type="button" title="Enter a judge access code to run Nemotron live">replay</button>
       <span class="tier-pill" id="tierPill"><span class="dot" id="tierDot"></span> <span id="tierText">connecting</span></span>
       <span class="who"><span class="avatar">PE</span> Platform Engineering</span>
     </div>
@@ -394,11 +395,19 @@
   "use strict";
   var $ = function (i) { return document.getElementById(i); };
   var M = null, AUDIT = [], REQS = [], RUNNING = false;
+  // Live: a judge (or no key configured) runs Nemotron for real. Replay: the
+  // recorded live run in replay.json, played back here; it spends nothing and
+  // every visitor gets their own copy, so one visitor's approval never
+  // changes what the next one sees.
+  var MODE = "live", KEY = "", REPLAY = null, PHASE = 0;
+  try { KEY = new URLSearchParams(location.search).get("key") || localStorage.getItem("warrantKey") || ""; } catch (e) {}
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c;
     if (x !== undefined) e.textContent = x; return e; }
   async function api(path, opts) {
-    var r = await fetch(path, opts || {});
+    opts = opts || {};
+    if (KEY) opts.headers = Object.assign({ "X-Warrant-Key": KEY }, opts.headers || {});
+    var r = await fetch(path, opts);
     var body = null;
     try { body = await r.json(); } catch (e) { body = null; }
     return { ok: r.ok, status: r.status, body: body };
@@ -494,9 +503,12 @@
   }
 
   async function loadModel() {
-    var r = await api("/v1/model");
-    if (!r.ok) return;
-    M = r.body; renderMatrix(); renderFleet();
+    if (MODE !== "replay") {
+      var r = await api("/v1/model");
+      if (!r.ok) return;
+      M = r.body;
+    }
+    renderMatrix(); renderFleet();
     var sel = $("fEntity");
     while (sel.options.length > 1) sel.remove(1);
     M.data_entities.forEach(function (e) {
@@ -533,6 +545,7 @@
     $("kRate").textContent = AUDIT.length ? Math.round(refused / AUDIT.length * 100) + "%" : "—";
   }
   async function loadAudit() {
+    if (MODE === "replay") { renderAudit(); return; }
     var r = await api("/v1/audit?limit=200");
     if (r.ok) { AUDIT = r.body.entries || []; renderAudit(); }
   }
@@ -614,8 +627,19 @@
     });
   }
 
+  function decideLocally(r, steward, approve, note) {
+    r.state = approve ? "approved" : "declined";
+    r.decided_by = steward.id; r.note = note || "";
+    if (approve) {
+      M.grants.push({ capability: r.capability, data_entity: r.data_entity, granted_by: steward.id });
+      PHASE = 1;
+    }
+    return { ok: true };
+  }
+
   async function decide(r, steward, approve, note) {
-    var res = await api("/v1/grant-requests/" + r.id + "/decision", {
+    var res = MODE === "replay" ? decideLocally(r, steward, approve, note)
+      : await api("/v1/grant-requests/" + r.id + "/decision", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decided_by: steward.id, approve: approve, note: note || "" })
     });
@@ -639,6 +663,7 @@
   }
 
   async function loadRequests() {
+    if (MODE === "replay") { renderApprovals(); return; }
     var r = await api("/v1/grant-requests");
     if (r.ok) { REQS = r.body.requests || []; renderApprovals(); }
   }
@@ -842,8 +867,9 @@
     $("ovBanner").hidden = true; $("apBanner").hidden = true;
     resetLive();
     show("runs");
+    if (MODE === "replay") { playReplay(); return; }
 
-    var es = new EventSource("/v1/demo/stream");
+    var es = new EventSource("/v1/demo/stream" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""));
     es.onmessage = async function (m) {
       var e; try { e = JSON.parse(m.data); } catch (err) { return; }
       if (e.kind === "done") {
@@ -864,11 +890,31 @@
       $("runState").textContent = "stream interrupted"; finishRun();
     };
   }
+  // The recorded run, at its real pace except that a model wait longer than
+  // 1.5s is cut to 1.5s (the trace still shows the real timestamps). After a
+  // local approval it plays the second recorded run, which was made after the
+  // same approval.
+  function playReplay() {
+    var rec = REPLAY.runs[PHASE], prev = 0, at = 0;
+    rec.events.forEach(function (e) {
+      at += Math.min(1500, Math.max(0, (e.t || 0) - prev)); prev = e.t || 0;
+      setTimeout(function () { addEvent(e); }, at);
+    });
+    setTimeout(function () {
+      var out = JSON.parse(JSON.stringify(rec.result));
+      if (PHASE === 0) REQS = out.grant_requests;
+      AUDIT = rec.audit;
+      renderOutcome(out); renderAudit(); renderApprovals(); finishRun();
+    }, at + 400);
+  }
+
   $("runBtn").addEventListener("click", run);
   $("ovRun").addEventListener("click", run);
 
   $("resetBtn").addEventListener("click", async function () {
-    await api("/v1/demo/reset", { method: "POST" });
+    if (MODE === "replay") {
+      PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
+    } else await api("/v1/demo/reset", { method: "POST" });
     resetLive();
     var tl = $("timeline"); tl.textContent = "";
     tl.appendChild(el("li", "tl-empty", "Press Run to start the audit. Every plan, warrant, refusal and finding appears here as it happens."));
@@ -881,7 +927,39 @@
   });
 
   /* ---- boot ---- */
+  function setMode(live, why) {
+    MODE = live ? "live" : "replay";
+    var p = $("modePill");
+    p.textContent = live ? "live · Nemotron" : "replay · recorded " + REPLAY.recorded_at;
+    p.classList.toggle("live", live);
+    p.title = live ? "Runs call Nemotron on Nebius Token Factory for real." + (why ? " " + why + "." : "")
+      : (why || "A recorded live run, played back in your browser. Judges: click to enter your access code and run it live.");
+  }
+
+  $("modePill").addEventListener("click", async function () {
+    if (MODE === "live") return;
+    var k = window.prompt("Judge access code (from the submission's testing instructions):");
+    if (!k) return;
+    KEY = k.trim();
+    var a = await api("/v1/access");
+    if (a.ok && a.body.live) {
+      try { localStorage.setItem("warrantKey", KEY); } catch (e) {}
+      setMode(true); await loadModel(); await loadAudit(); await loadRequests();
+    } else { KEY = ""; window.alert("That code was not accepted. Replay mode stays on."); }
+  });
+
   (async function () {
+    var a = await api("/v1/access");
+    if (a.ok && !a.body.live) {
+      if (KEY) { KEY = ""; try { localStorage.removeItem("warrantKey"); } catch (e) {} }
+      var rr = await fetch(a.body.replay);
+      REPLAY = await rr.json();
+      M = JSON.parse(JSON.stringify(REPLAY.model));
+      setMode(false);
+    } else {
+      REPLAY = { recorded_at: "" };
+      setMode(true, a.ok && a.body.runs_left_today != null ? a.body.runs_left_today + " live runs left today" : "");
+    }
     await loadHealth();
     await loadModel();
     await loadAudit();
