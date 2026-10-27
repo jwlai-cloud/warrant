@@ -33,7 +33,7 @@ from playwright.async_api import async_playwright
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "demo-video"
 PORT = 8020
-URL = f"http://127.0.0.1:{PORT}/"
+URL = f"http://127.0.0.1:{PORT}/#overview"   # the console; "/" alone is the landing page
 # The console is zoomed 1.25x inside a 1920x1080 page, so its text reads 25%
 # larger on video while staying sharp (Playwright's recorder ignores
 # device_scale_factor). The cards and topology are drawn for 1920 and are not.

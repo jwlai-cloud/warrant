@@ -6,309 +6,549 @@
 <title>Warrant Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Work+Sans:wght@400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
-  :root{--ground:#EEF0F4;--surface:#FFF;--sunk:#E4E7EE;--rail:#161A23;--rail-ink:#C9CFDE;
-    --rail-active:#2A3142;--ink:#14171F;--ink-soft:#4A5162;--ink-faint:#858CA0;
-    --rule:#D5D9E3;--rule-hard:#B4BAC9;--accent:#1D3B73;--accent-soft:#E2E9F6;
-    --ok:#2F6B47;--ok-bg:#E1EDE6;--bad:#A62B2B;--bad-bg:#F7E2E2;--warn:#8A5A17;--warn-bg:#FAEEDA;
-    --cls-i:#5A6274;--cls-c:#8A5A17;--cls-r:#8C2F2F;
-    --shadow:0 1px 2px rgba(20,23,31,.05),0 10px 26px -14px rgba(20,23,31,.22);}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-    --ground:#0C0E13;--surface:#161A23;--sunk:#10131A;--rail:#080A0E;--rail-ink:#9AA3B8;
-    --rail-active:#1D2431;--ink:#E8EAF1;--ink-soft:#A2AABC;--ink-faint:#6B7285;
-    --rule:#272C39;--rule-hard:#39404F;--accent:#7EA2E0;--accent-soft:#18212F;
-    --ok:#6FC08E;--ok-bg:#15251B;--bad:#E88686;--bad-bg:#2A1517;--warn:#D0A257;--warn-bg:#2A2114;
-    --cls-i:#8A92A6;--cls-c:#C99A4A;--cls-r:#E08A8A;
-    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px -14px rgba(0,0,0,.7);}}
-  :root[data-theme="dark"]{
-    --ground:#0C0E13;--surface:#161A23;--sunk:#10131A;--rail:#080A0E;--rail-ink:#9AA3B8;
-    --rail-active:#1D2431;--ink:#E8EAF1;--ink-soft:#A2AABC;--ink-faint:#6B7285;
-    --rule:#272C39;--rule-hard:#39404F;--accent:#7EA2E0;--accent-soft:#18212F;
-    --ok:#6FC08E;--ok-bg:#15251B;--bad:#E88686;--bad-bg:#2A1517;--warn:#D0A257;--warn-bg:#2A2114;
-    --cls-i:#8A92A6;--cls-c:#C99A4A;--cls-r:#E08A8A;
-    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px -14px rgba(0,0,0,.7);}
+  /* Orbital atlas (landing, rail) + approach-control strips (console), on a light ground.
+     Ultramarine = the chart; gold = cleared; vermilion = refused; navy ink = flagged.
+     Department edges: Finance gold, Operations blue, People & Culture rose.
+     Light theme only (ponytail: no dark theme; add tokens under prefers-color-scheme if wanted). */
+  :root{color-scheme:light;
+    --blue:#2D4AA0;--blue-hi:#3B5CBA;--blue-deep:#22398A;--blue-rail:#26409A;--blue-act:#3352B0;
+    --cream:#F4EEDD;--cream-2:#E9E1CB;--cream-dim:#D3D9EF;
+    --gold:#E2B655;--gold-hi:#F0CF7A;--gold-ink:#7A5A0E;--gold-bg:#F8EBC6;
+    --red:#C8432A;--red-ink:#B23A22;--red-bg:#FBE4DC;
+    --ink:#14204A;--ink-soft:#46507A;--ink-faint:#5E6687;
+    --paper:#F6F1E4;--surface:#FFFDF8;--sunk:#EFE8D6;--rule:#DCD2BA;--rule-soft:#EAE2CF;
+    --navy-bg:#E3E7F5;--navy-ink:#22398A;
+    --d-fin:#D9A441;--d-ops:#3E64C8;--d-pc:#B5578A;--d-ext:#8A8F9E;
+    --serif:"Cormorant Garamond",Georgia,serif;--sans:"Work Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"Space Mono",ui-monospace,monospace;
+    --shadow:0 1px 2px rgba(20,32,74,.05),0 12px 28px -18px rgba(20,32,74,.28);}
 
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--ground);color:var(--ink);
-    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:13.5px;line-height:1.5}
-  .shell{display:grid;grid-template-columns:214px 1fr;min-height:100%}
+  html,body{min-height:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 14.5px/1.5 var(--sans);
+    -webkit-font-smoothing:antialiased;font-variant-numeric:lining-nums}
+  button{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
 
-  nav.rail{background:var(--rail);color:var(--rail-ink);display:flex;flex-direction:column;
-    padding-bottom:12px;padding-top:env(safe-area-inset-top,0px)}
-  .brand{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
-  .brand b{font-family:Archivo,sans-serif;font-weight:700;font-size:16px;letter-spacing:.16em;
-    text-transform:uppercase;color:#fff;display:block}
-  .brand span{font-size:10.5px;color:#7C859B}
-  .navlist{list-style:none;margin:10px 0 0;padding:0 8px;display:grid;gap:1px}
-  .navlist button{width:100%;text-align:left;cursor:pointer;background:none;border:0;
-    color:var(--rail-ink);font:inherit;font-size:12.5px;padding:8px 10px;display:flex;
-    align-items:center;justify-content:space-between;gap:8px}
-  .navlist button:hover{background:var(--rail-active);color:#fff}
-  .navlist button[aria-current=page]{background:var(--rail-active);color:#fff;
-    box-shadow:inset 2px 0 0 var(--accent)}
-  .navlist button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
-  .badge-n{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
-    background:var(--bad);color:#fff;padding:1px 6px;min-width:18px;text-align:center}
+  /* ---------- rail ---------- */
+  nav.rail{background:var(--blue-rail);color:var(--cream);display:flex;flex-direction:column;
+    padding:20px 0 16px;padding-top:max(20px,env(safe-area-inset-top,0px))}
+  .brand{display:flex;align-items:center;gap:11px;background:none;border:0;cursor:pointer;text-align:left;
+    padding:0 22px 20px;color:var(--cream)}
+  .brand svg{flex:none}
+  .brand b{display:block;font:700 15px/1 var(--mono);letter-spacing:.3em;text-transform:uppercase}
+  .brand span span{display:block;font:400 12px/1.4 var(--sans);color:var(--cream-dim);margin-top:5px}
+  .brand:hover b{color:#fff}
+  .brand:focus-visible{outline:2px solid var(--gold-hi);outline-offset:-4px}
+  nav.rail .org{margin:0 22px 14px;padding:14px 0;border-top:1px solid rgba(244,238,221,.22);border-bottom:1px solid rgba(244,238,221,.22)}
+  nav.rail .org b{display:block;font:600 23px/1.1 var(--serif)}
+  nav.rail .org span{font:400 12px/1.5 var(--mono);color:var(--cream-dim)}
+  .navlist{list-style:none;margin:0;padding:0;display:grid;gap:1px}
+  .navlist button{width:100%;text-align:left;cursor:pointer;background:none;border:0;color:var(--cream-dim);
+    font:500 15px/1.2 var(--sans);padding:11px 22px;display:flex;align-items:center;gap:12px}
+  .navlist button i{width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;flex:none}
+  .navlist button:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .navlist button[aria-current=page]{color:#fff;background:var(--blue-act)}
+  .navlist button[aria-current=page] i{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 4px rgba(226,182,85,.25)}
+  .navlist button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:-3px}
+  .badge-n{margin-left:auto;font:700 12px/1 var(--mono);background:var(--red);color:#fff;border-radius:999px;padding:4px 8px;min-width:22px;text-align:center}
   .badge-n[hidden]{display:none!important}
-  .rail-foot{margin-top:auto;padding:12px 16px 0;font-size:10.5px;color:#697287;
-    border-top:1px solid rgba(255,255,255,.08)}
+  .rail-foot{margin-top:auto;padding:16px 22px 0;border-top:1px solid rgba(244,238,221,.22);
+    font:400 12px/1.7 var(--mono);color:var(--cream-dim)}
+  .rail-foot b{color:var(--cream);font-weight:400}
 
+  /* ---------- top bar ---------- */
   main.stage{min-width:0;display:flex;flex-direction:column}
-  .topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 20px;
-    background:var(--surface);border-bottom:1px solid var(--rule)}
-  .crumb{font-size:12px;color:var(--ink-faint);flex:1 1 200px}
-  .crumb b{color:var(--ink);font-weight:600}
-  .env{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.08em;
-    text-transform:uppercase;padding:2px 7px;border:1px solid var(--warn);color:var(--warn);
-    background:var(--warn-bg);cursor:pointer}
-  .env.live{border-color:var(--ok);color:var(--ok);background:var(--ok-bg);cursor:default}
-  .who{font-size:11.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
-  .avatar{width:22px;height:22px;background:var(--accent);color:#fff;display:grid;
-    place-items:center;font-size:10px;font-weight:600;font-family:Archivo,sans-serif;flex:none}
-  .tier-pill{font-family:"IBM Plex Mono",monospace;font-size:10.5px;display:inline-flex;
-    align-items:center;gap:6px;color:var(--ink-soft);border:1px solid var(--rule-hard);padding:2px 8px}
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
-  .dot.off{background:var(--bad)}
+  .topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 32px;border-bottom:1px solid var(--rule)}
+  .crumb{font:400 13px/1.3 var(--mono);color:var(--ink-faint);flex:1 1 200px}
+  .crumb b{color:var(--ink);font-weight:700}
+  .env{font:400 12.5px/1 var(--mono);padding:7px 12px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--rule);background:var(--surface);color:var(--ink-soft);display:inline-flex;align-items:center;gap:8px}
+  .env::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid var(--blue);background:var(--gold)}
+  .env:hover{border-color:var(--blue)}
+  .env.live{cursor:default;background:var(--blue);border-color:var(--blue);color:var(--cream)}
+  .env.live::before{border-color:var(--cream)}
+  .who{font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--cream);display:grid;
+    place-items:center;font:700 11px/1 var(--mono);flex:none}
+  .tier-pill{font:400 12px/1 var(--mono);display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);flex:none}
+  .dot.off{background:var(--red);box-shadow:0 0 0 3px var(--red-bg)}
 
-  .view{padding:20px;display:none}.view.active{display:block}
-  .view-head{margin-bottom:16px}
-  .view-head h1{font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:0 0 3px}
-  .view-head p{margin:0;color:var(--ink-soft);font-size:13px;max-width:74ch}
+  /* ---------- step bar ---------- */
+  .stepbar{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(200px,300px);margin:20px 32px 0;
+    background:var(--surface);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+  .stepbar .of{background:var(--blue);color:var(--cream);padding:12px 22px;display:flex;flex-direction:column;justify-content:center;min-width:160px}
+  .stepbar .of b{font:600 26px/1 var(--serif);white-space:nowrap}
+  .stepbar .of span{font:400 12px/1.4 var(--mono);color:var(--cream-dim);margin-top:4px}
+  .stepbar ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stepbar li+li{border-left:1px solid var(--rule)}
+  .stepbar ol button{width:100%;height:100%;display:flex;align-items:center;gap:11px;padding:12px 16px;border:0;
+    background:none;cursor:pointer;text-align:left;font:500 14.5px/1.25 var(--sans);color:var(--ink-faint)}
+  .stepbar ol button:hover{background:var(--paper);color:var(--ink)}
+  .stepbar .n{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--blue);flex:none;display:grid;
+    place-items:center;font:700 12px/1 var(--mono);color:var(--blue)}
+  .stepbar .done button{color:var(--ink)}
+  .stepbar .done .n{background:var(--blue);color:var(--cream)}
+  .stepbar .now button{color:var(--ink);font-weight:600;background:var(--gold-bg)}
+  .stepbar .now .n{background:linear-gradient(90deg,transparent 50%,var(--blue) 50%);color:transparent}
+  .stepbar .hint{border-left:1px solid var(--rule);padding:12px 18px;font-size:14px;line-height:1.4;color:var(--ink-soft);display:flex;align-items:center}
+  .stepbar.complete .of{background:var(--gold);color:var(--ink)}
+  .stepbar.complete .of span{color:var(--ink-soft)}
 
-  .panel{background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow)}
-  .panel+.panel{margin-top:16px}
-  .panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 14px;
-    border-bottom:1px solid var(--rule);background:var(--sunk)}
-  .panel-head h2{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;
-    text-transform:uppercase;margin:0;flex:1 1 auto}
-  .panel-body{padding:14px}
+  /* ---------- views ---------- */
+  .view{padding:22px 32px 48px;display:none}.view.active{display:block}
+  .view-head{margin-bottom:20px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 32px}
+  .view-head h1{font:600 46px/1 var(--serif);letter-spacing:-.01em;margin:0}
+  .view-head p{margin:0;color:var(--ink-soft);font-size:15px;max-width:76ch;flex:1 1 360px}
 
-  button.btn{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;
-    text-transform:uppercase;cursor:pointer;padding:7px 13px;border:1px solid var(--rule-hard);
-    background:var(--surface);color:var(--ink)}
-  button.btn:hover:not(:disabled){border-color:var(--ink)}
-  button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  button.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
-  button.btn:disabled{opacity:.42;cursor:default}
-  button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+  .panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .panel+.panel{margin-top:18px}
+  .panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 20px;border-bottom:1px solid var(--rule)}
+  .panel-head h2{font:600 26px/1.05 var(--serif);margin:0;flex:1 1 auto}
+  .panel-body{padding:18px 20px}
 
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
-  .kpi{background:var(--surface);border:1px solid var(--rule);padding:13px 14px;box-shadow:var(--shadow)}
-  .kpi dt{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
-    font-weight:600;margin:0 0 6px}
-  .kpi dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:25px;font-weight:600;
-    font-variant-numeric:tabular-nums;line-height:1.1}
-  .kpi .sub{font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;color:var(--ink-soft);margin-top:4px}
-  .kpi.alert dd{color:var(--bad)}.kpi.good dd{color:var(--ok)}
+  button.btn{font:600 14px/1 var(--sans);cursor:pointer;padding:11px 18px;border-radius:999px;
+    border:1.5px solid var(--ink);background:transparent;color:var(--ink);white-space:nowrap}
+  button.btn:hover:not(:disabled){background:var(--sunk)}
+  button.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--cream)}
+  button.btn.primary:hover:not(:disabled){background:var(--blue-deep)}
+  button.btn.ok{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+  button.btn.ok:hover:not(:disabled){background:var(--gold-hi)}
+  button.btn:disabled{opacity:.5;cursor:default}
+  .btn-row{display:flex;flex-wrap:wrap;gap:10px}
 
+  /* exposure: big £ over the 47-cell outcome bar */
+  .expo .l{font:400 12.5px/1 var(--mono);color:var(--ink-faint)}
+  .expo .v{font:600 64px/1 var(--serif);margin-top:8px;letter-spacing:-.01em;font-variant-numeric:lining-nums tabular-nums}
+  .cells{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;margin-top:16px}
+  .cells i{height:18px;border-radius:2px;background:var(--rule-soft)}
+  .cells i.g{background:var(--gold)}
+  .cells i.f{background:var(--ink)}
+  .cells i.x{background:var(--red-bg);box-shadow:inset 0 0 0 1px var(--red);
+    background-image:repeating-linear-gradient(45deg,rgba(200,67,42,.55) 0 2px,transparent 2px 5px)}
+  .cells-legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font:400 12.5px/1.4 var(--mono);color:var(--ink-faint)}
+  .cells-legend b{font:600 22px/1 var(--serif);color:var(--ink);margin-right:5px;font-variant-numeric:lining-nums}
+  .cells-legend .g b{color:var(--gold-ink)} .cells-legend .x b{color:var(--red-ink)}
+  .cells-legend .tot{margin-left:auto}
+
+  /* overview */
+  .ov-grid{display:grid;grid-template-columns:minmax(260px,380px) minmax(0,1fr)}
+  .ov-grid .expo{padding:22px 24px;border-right:1px solid var(--rule);background:var(--paper)}
+  .ov-grid .expo p{margin:12px 0 0;font-size:14px;color:var(--ink-soft)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:22px 0 0;
+    border-top:1.5px solid var(--ink);border-bottom:1px solid var(--rule)}
+  .kpi{padding:14px 18px 16px;margin:0}
+  .kpi+.kpi{border-left:1px solid var(--rule)}
+  .kpi dt{font:400 12.5px/1 var(--mono);color:var(--ink-faint);display:flex;align-items:center;gap:8px}
+  .kpi dt i{width:10px;height:10px;border-radius:50%;background:var(--ink);flex:none}
+  .kpi dd{margin:8px 0 0;font:600 48px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums}
+  .kpi .sub{font-size:13.5px;color:var(--ink-soft);margin-top:4px}
+  .kpi.alert dt i{background:var(--red)} .kpi.alert dd{color:var(--red-ink)}
+  .kpi.good dt i{background:var(--gold)}
+
+  /* tables */
   .tscroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%}
-  thead th{text-align:left;padding:8px 12px;background:var(--sunk);
-    border-bottom:1px solid var(--rule-hard);font-size:9.5px;letter-spacing:.09em;
-    text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
-  tbody td{padding:9px 12px;border-bottom:1px solid var(--rule);font-size:12.5px;vertical-align:top}
+  thead th{text-align:left;padding:10px 16px;border-bottom:1.5px solid var(--ink);font:400 12px/1.2 var(--mono);
+    color:var(--ink-faint);white-space:nowrap}
+  tbody td{padding:11px 16px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:top}
   tbody tr:last-child td{border-bottom:0}
-  td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.num{font:400 13px/1.5 var(--mono);white-space:nowrap}
 
-  .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:1px 6px;
-    border:1px solid var(--rule-hard);color:var(--ink-soft);white-space:nowrap}
-  .tag{display:inline-block;font-family:Archivo,sans-serif;font-size:9.5px;font-weight:700;
-    letter-spacing:.09em;text-transform:uppercase;padding:2px 7px;border:1px solid;white-space:nowrap}
-  .tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
-  .tag.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}
-  .tag.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
-  .tag.mute{color:var(--ink-faint);border-color:var(--rule-hard)}
-  .cls{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;
-    border:1px solid currentColor;padding:1px 5px;display:inline-block}
-  .cls.internal{color:var(--cls-i)}.cls.confidential{color:var(--cls-c)}.cls.restricted{color:var(--cls-r)}
+  .chip{display:inline-block;font:400 12.5px/1.4 var(--mono);padding:1px 7px;border-radius:5px;background:var(--sunk);
+    color:var(--ink);white-space:nowrap;border:0}
+  .tag{display:inline-block;font:700 12px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;
+    padding:5px 9px;border-radius:999px;white-space:nowrap;border:1.5px solid transparent}
+  .tag.ok{background:var(--gold);color:var(--ink)}
+  .tag.bad{background:var(--red);color:#fff}
+  .tag.warn{background:var(--navy-bg);color:var(--navy-ink)}
+  .tag.mute{border-color:var(--rule);color:var(--ink-faint);background:transparent}
+  .cls{font:700 12px/1 var(--mono);letter-spacing:.03em;text-transform:lowercase;padding:3px 7px;border-radius:5px;display:inline-block}
+  .cls.internal{background:var(--sunk);color:var(--ink-soft)}
+  .cls.confidential{background:var(--navy-bg);color:var(--navy-ink)}
+  .cls.restricted{background:var(--ink);color:var(--cream)}
 
-  table.matrix{min-width:700px}
-  table.matrix th,table.matrix td{border:1px solid var(--rule)}
-  table.matrix thead th{vertical-align:bottom;padding:9px 10px}
-  table.matrix .ent{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;
-    margin-bottom:4px;text-transform:none;letter-spacing:0;color:var(--ink)}
-  th.caprow{text-align:left;padding:9px 12px;background:var(--sunk);font-weight:600;
-    font-size:12.5px;white-space:nowrap}
-  th.caprow small{display:block;font-weight:400;font-size:10.5px;color:var(--ink-faint)}
-  td.cell{padding:0;height:46px;text-align:center}
-  td.cell .mk{display:flex;align-items:center;justify-content:center;height:100%;
-    font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600}
-  td.cell.y .mk{color:var(--ok);background:var(--ok-bg)}
+  /* matrix */
+  table.matrix{min-width:760px}
+  table.matrix th,table.matrix td{border:1px solid var(--rule-soft)}
+  table.matrix thead th{vertical-align:bottom;padding:12px 10px;border-bottom:1.5px solid var(--ink)}
+  table.matrix .ent{display:block;font:700 12.5px/1.3 var(--mono);margin-bottom:6px;color:var(--ink);white-space:normal}
+  th.caprow{text-align:left;padding:12px 16px;font:600 19px/1.15 var(--serif);color:var(--ink);white-space:nowrap}
+  thead th.caprow{font:400 12px/1.2 var(--mono);color:var(--ink-faint)}
+  th.caprow small{display:block;font:400 12px/1.4 var(--mono);color:var(--ink-faint);margin-top:2px}
+  td.cell{padding:4px;height:54px;text-align:center}
+  td.cell .mk{display:flex;align-items:center;justify-content:center;height:100%;border-radius:6px;font:700 15px/1 var(--mono)}
+  td.cell.y .mk{color:var(--ink);background:var(--gold)}
   td.cell.n .mk{color:var(--ink-faint)}
-  td.cell.gap .mk{color:var(--bad);background:var(--bad-bg);outline:2px solid var(--bad);outline-offset:-2px}
-  td.cell.fresh .mk{animation:flash .9s ease-out 1}
-  @keyframes flash{0%{background:var(--accent);color:#fff}}
-  td.cell.lit-y .mk{box-shadow:inset 0 0 0 2px var(--ok)}
-  td.cell.lit-n .mk{box-shadow:inset 0 0 0 2px var(--bad)}
+  td.cell.gap .mk{color:#fff;background:var(--red)}
+  td.cell.fresh .mk{animation:flash 1.2s ease-out 1}
+  @keyframes flash{0%{background:var(--blue);color:var(--cream);transform:scale(1.08)}}
+  td.cell.lit-y .mk{box-shadow:inset 0 0 0 2px var(--ink)}
+  td.cell.lit-n .mk{box-shadow:inset 0 0 0 2px var(--red)}
   td.cell.busy .mk{animation:pulse .5s ease-in-out infinite}
-  @keyframes pulse{50%{filter:brightness(1.35)}}
-  @media (prefers-reduced-motion:reduce){td.cell.busy .mk,td.cell.fresh .mk{animation:none}}
+  @keyframes pulse{50%{filter:brightness(1.2)}}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 22px;padding:12px 20px;border-top:1px solid var(--rule);
+    background:var(--paper);font-size:13.5px;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .sw{width:14px;height:14px;border-radius:3px;flex:none}
+  .sw.y{background:var(--gold)} .sw.n{border:1px solid var(--rule)} .sw.x{background:var(--red)}
 
-  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:9px 14px;border-top:1px solid var(--rule);
-    background:var(--sunk);font-size:11.5px;color:var(--ink-soft)}
-  .legend span{display:inline-flex;align-items:center;gap:6px}
-  .sw{width:11px;height:11px;border:1px solid;flex:none}
-  .sw.y{background:var(--ok-bg);border-color:var(--ok)}
-  .sw.n{background:transparent;border-color:var(--rule-hard)}
-  .sw.x{background:var(--bad-bg);border-color:var(--bad)}
-
-  ol.steps{list-style:none;margin:0;padding:0}
-  ol.steps>li{border-bottom:1px solid var(--rule);padding:12px 14px}
-  ol.steps>li:last-child{border-bottom:0}
-  .step-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-  .hop{font-family:"IBM Plex Mono",monospace;font-size:12px;flex:1 1 280px;min-width:0;word-break:break-word}
-  .hop i{font-style:normal;color:var(--ink-faint)}
-  .purpose{margin:7px 0 0;padding-left:10px;border-left:2px solid var(--rule-hard);
-    color:var(--ink-soft);font-size:12.5px}
-  .why{margin-top:9px;padding:9px 11px;background:var(--bad-bg);border-left:3px solid var(--bad);font-size:12.5px}
-  .meta{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--ink-faint)}
-
-  .outcome{border-top:2px solid var(--ink);padding:13px 14px}
-  .outcome h3{font-family:Archivo,sans-serif;font-size:11px;letter-spacing:.11em;
-    text-transform:uppercase;margin:0 0 9px}
-  .branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
-  .branch{border:1px solid var(--rule);background:var(--sunk);padding:11px}
-  .branch h4{margin:0 0 6px;font-family:Archivo,sans-serif;font-size:10px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--accent)}
-  .branch p{margin:0;font-size:12px;color:var(--ink-soft)}
-  .tally{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600;display:block;
-    font-variant-numeric:tabular-nums;margin-bottom:2px}
-
-  .req{border:1px solid var(--rule);background:var(--surface)}
-  .req+.req{margin-top:12px}
-  .req-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:11px 14px;
-    border-bottom:1px solid var(--rule);background:var(--sunk)}
-  .req-head .t{flex:1 1 260px;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
-  .req-body{padding:13px 14px;display:grid;gap:11px}
-  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-  .field dt{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
-    font-weight:600;margin-bottom:3px}
-  .field dd{margin:0;font-size:12.5px}
-  .justify{padding:10px 12px;background:var(--accent-soft);border-left:3px solid var(--accent);font-size:12.5px}
-  label.rl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);
-    font-weight:600;display:block;margin-bottom:5px}
-  textarea,select{width:100%;font:inherit;font-size:12.5px;padding:7px 9px;
-    border:1px solid var(--rule-hard);background:var(--surface);color:var(--ink)}
-  textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
-  .empty{padding:26px 14px;text-align:center;color:var(--ink-faint);font-size:12.5px}
-  .banner{padding:11px 14px;border:1px solid var(--ok);background:var(--ok-bg);color:var(--ok);
-    font-size:12.5px;margin-bottom:14px}
+  /* approvals */
+  .req{border:1px solid var(--rule);background:var(--surface);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .req+.req{margin-top:16px}
+  .req-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--rule);
+    background:var(--paper);border-left:6px solid var(--d-pc)}
+  .req-head .t{flex:1 1 280px;font:700 14px/1.4 var(--mono)}
+  .req-body{padding:18px 20px;display:grid;gap:16px}
+  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;margin:0;border-top:1.5px solid var(--ink)}
+  .field{padding:10px 16px 4px 0}
+  .field+.field{padding-left:16px;border-left:1px solid var(--rule)}
+  .field dt{font:400 12px/1 var(--mono);color:var(--ink-faint);margin-bottom:6px}
+  .field dd{margin:0;font:600 21px/1.15 var(--serif)}
+  .justify{padding:12px 16px;background:var(--navy-bg);border-left:4px solid var(--blue);border-radius:0 8px 8px 0;font-size:14.5px}
+  label.rl{font:400 12.5px/1.3 var(--mono);color:var(--ink-faint);display:block;margin-bottom:6px}
+  textarea,select{width:100%;font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;
+    border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+  textarea:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:-1px}
+  .empty{padding:30px 20px;text-align:center;color:var(--ink-faint);font-size:14px}
+  .banner{padding:13px 18px;border:1px solid var(--gold);background:var(--gold-bg);color:var(--ink);border-radius:10px;
+    font-size:14.5px;margin-bottom:18px;border-left:6px solid var(--gold)}
   .banner[hidden]{display:none!important}
-  .banner.bad{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+  .banner.bad{border-color:var(--red);background:var(--red-bg);color:var(--red-ink)}
   .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-  .filters select{width:auto;min-width:118px}
+  .filters select{width:auto;min-width:140px}
 
-  .fleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:12px}
-  .agent{border:1px solid var(--rule);background:var(--surface);padding:13px;box-shadow:var(--shadow)}
-  .agent h3{margin:0 0 2px;font-family:Archivo,sans-serif;font-size:13.5px;font-weight:600}
-  .agent .org{font-size:11px;color:var(--ink-faint);margin-bottom:9px}
-  .agent dl{margin:0;display:grid;gap:7px}
-  .agent dt{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
-  .agent dd{margin:0;display:flex;flex-wrap:wrap;gap:4px}
+  .review{border-radius:10px;background:var(--blue);color:var(--cream);padding:16px 18px}
+  .review-head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;
+    font:italic 600 22px/1.1 var(--serif);color:var(--gold-hi)}
+  .review p{margin:0;font-size:14.5px;color:var(--cream)}
+  .review ul{margin:8px 0 0;padding-left:20px;font-size:14px;color:var(--cream-2)}
+  .review .fine{margin-top:10px;font:400 12px/1.5 var(--mono);color:var(--cream-dim)}
 
+  /* fleet */
+  .fleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .agent{border:1px solid var(--rule);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);
+    border-top:6px solid var(--d-ext)}
+  .agent.d-fin{border-top-color:var(--d-fin)} .agent.d-ops{border-top-color:var(--d-ops)} .agent.d-pc{border-top-color:var(--d-pc)}
+  .agent h3{margin:0 0 2px;font:600 26px/1.1 var(--serif)}
+  .agent .org{font:400 12.5px/1.5 var(--mono);color:var(--ink-faint);margin:0 0 14px;padding:0;border:0}
+  .agent dl{margin:0;display:grid;gap:8px}
+  .agent dt{font:400 12px/1 var(--mono);color:var(--ink-faint)}
+  .agent dd{margin:0 0 4px;display:flex;flex-wrap:wrap;gap:5px}
 
-  /* steward agent review */
-  .review{border:1px solid var(--rule);border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 12px}
-  .review-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px;
-    font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
-  .review p{margin:0;font-size:12.5px}
-  .review ul{margin:7px 0 0;padding-left:18px;font-size:12px;color:var(--ink-soft)}
-  .review .fine{margin-top:7px;font-size:10.5px;color:var(--ink-faint)}
-
-  /* live trace + findings */
-  .runwrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:0}
+  /* runs: flight strips + findings */
+  .runwrap{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr)}
   .runcol{min-width:0}
   .runcol+.runcol{border-left:1px solid var(--rule)}
-  .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;
-    border-bottom:1px solid var(--rule);font-family:Archivo,sans-serif;font-size:10px;font-weight:600;
-    letter-spacing:.11em;text-transform:uppercase;color:var(--ink-soft)}
-  ol.timeline{list-style:none;margin:0;padding:6px 0;max-height:640px;overflow-y:auto}
-  ol.timeline>li{display:grid;grid-template-columns:52px 86px minmax(0,1fr);gap:4px 10px;
-    padding:8px 14px;border-bottom:1px solid var(--rule);animation:tlIn .35s ease-out 1}
-  ol.timeline>li:last-child{border-bottom:0}
-  ol.timeline>li.tl-empty{display:block;color:var(--ink-faint);font-size:12.5px;padding:22px 14px;animation:none}
+  .col-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:12px 18px;
+    border-bottom:1px solid var(--rule);font:600 22px/1.1 var(--serif)}
+  .who-model{font:400 12px/1.4 var(--mono);color:var(--navy-ink)}
+  ol.timeline{list-style:none;margin:0;padding:12px;display:flex;flex-direction:column;gap:7px;max-height:760px;overflow-y:auto;
+    background:var(--paper)}
+  ol.timeline>li{display:grid;grid-template-columns:6px 62px 96px minmax(0,1fr);grid-template-areas:"e t k b";
+    background:var(--surface);border:1px solid var(--rule);border-radius:6px;overflow:hidden;min-height:50px;flex:none;
+    animation:tlIn .35s ease-out 1}
+  ol.timeline>li.dec{grid-template-columns:6px 62px 96px minmax(0,1fr) 132px;grid-template-areas:"e t k b st"}
+  ol.timeline>li.tl-empty{display:block;color:var(--ink-faint);font-size:14px;padding:26px 18px;animation:none;border-style:dashed;background:none}
   @keyframes tlIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  @media (prefers-reduced-motion:reduce){ol.timeline>li{animation:none}}
-  .tl-t{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px;
+  .tl-e{grid-area:e;background:var(--d-ext)}
+  li.d-fin .tl-e{background:var(--d-fin)} li.d-ops .tl-e{background:var(--d-ops)} li.d-pc .tl-e{background:var(--d-pc)}
+  .tl-t{grid-area:t;font:400 12.5px/1.4 var(--mono);color:var(--ink-faint);padding:12px 8px 10px 12px;border-right:1px dashed var(--rule);
     font-variant-numeric:tabular-nums}
-  .tl-k{padding-top:1px}
-  .tl-body{min-width:0;font-size:12.5px}
+  .tl-k{grid-area:k;font:700 12.5px/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:12px 10px 10px;
+    border-right:1px dashed var(--rule);color:var(--ink-soft)}
+  .tl-body{grid-area:b;min-width:0;font-size:14.5px;padding:11px 16px 12px}
   .tl-text{word-break:break-word}
-  .tl-quote{margin:6px 0 0;padding:6px 10px;border-left:2px solid var(--accent);background:var(--accent-soft);
-    font-size:12.5px;color:var(--ink)}
-  .tl-quote.bad{border-left-color:var(--bad);background:var(--bad-bg)}
-  .tl-sub{margin-top:5px;font-size:11px;color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
-  .tl-steps{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:5px}
-  .tl-steps li{font-size:12px;padding-left:10px;border-left:2px solid var(--rule-hard)}
-  .tl-steps b{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500}
-  .who-model{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--accent);font-weight:600}
-  #findings{padding:10px 12px;display:grid;gap:9px}
-  .finding{border:1px solid var(--rule);border-left:3px solid var(--warn);background:var(--surface);
-    padding:9px 11px;animation:tlIn .35s ease-out 1}
-  .finding.hidden-until{border-left-color:var(--bad)}
-  .finding-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-  .finding-id{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600}
-  .finding-amt{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--warn);
-    font-variant-numeric:tabular-nums}
-  .finding p{margin:4px 0 0;font-size:12px;color:var(--ink-soft)}
-  .finding .via{margin-top:6px;font-size:10.5px;color:var(--ink-faint)}
-  .summary-box{margin:0 14px 14px;padding:11px 13px;border:1px solid var(--rule);background:var(--sunk);font-size:13px}
-  .summary-box h4{margin:0 0 6px;font-family:Archivo,sans-serif;font-size:10px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--accent)}
-  @media (max-width:980px){.runwrap{grid-template-columns:1fr}.runcol+.runcol{border-left:0;border-top:1px solid var(--rule)}}
+  /* the full report is in the summary box below; the strip shows its opening */
+  li[data-kind=report] .tl-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .tl-quote{margin:6px 0 0;font:italic 500 18px/1.35 var(--serif);color:var(--ink-soft)}
+  .tl-quote.bad{color:var(--ink)}
+  .tl-sub{margin-top:6px;font:400 12px/1.6 var(--mono);color:var(--ink-faint);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .tl-steps{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:0;counter-reset:s}
+  .tl-steps li{font-size:14px;padding:6px 0 6px 30px;border-top:1px dashed var(--rule);position:relative;counter-increment:s}
+  .tl-steps li::before{content:counter(s,lower-roman)".";position:absolute;left:0;top:5px;font:italic 600 18px/1 var(--serif);color:var(--blue)}
+  .tl-steps b{font:700 12.5px/1 var(--mono);color:var(--ink)}
+  .tl-st{grid-area:st;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;padding:10px;text-align:center;
+    border-left:1px solid var(--rule)}
+  .tl-st b{font:600 25px/1 var(--serif)}
+  .tl-st span{font:400 12px/1.3 var(--mono);color:var(--ink-soft)}
+  li.dec.ok .tl-k{color:var(--gold-ink)}
+  li.dec.ok .tl-st{background:var(--gold)} li.dec.ok .tl-st b,li.dec.ok .tl-st span{color:var(--ink)}
+  li.dec.no{border-color:var(--red)}
+  li.dec.no .tl-k{color:var(--red-ink)}
+  li.dec.no .tl-st{background:var(--red)} li.dec.no .tl-st b,li.dec.no .tl-st span{color:#fff}
+  li[data-kind=escalate]{border-color:var(--red);border-style:dashed}
+  li[data-kind=escalate] .tl-k,li[data-kind=replan] .tl-k{color:var(--red-ink)}
+  li[data-kind=finding] .tl-k,li[data-kind=report] .tl-k{color:var(--navy-ink)}
+  li[data-kind=error]{border-color:var(--red)}
+  .why{margin-top:10px;padding:10px 14px;background:var(--red-bg);border-left:4px solid var(--red);border-radius:0 8px 8px 0;
+    font-weight:600;font-size:14.5px;line-height:1.4}
+  ol.timeline .review{margin-top:8px}
 
+  .expo-run{padding:18px 18px 16px;border-bottom:1px solid var(--rule)}
+  #findings{padding:12px;display:grid;gap:8px;background:var(--paper)}
+  #findings .empty{padding:20px}
+  .finding{border:1px solid var(--rule);border-left:5px solid var(--d-ext);border-radius:6px;background:var(--surface);
+    padding:11px 14px;animation:tlIn .35s ease-out 1}
+  .finding.d-fin{border-left-color:var(--d-fin)} .finding.d-ops{border-left-color:var(--d-ops)} .finding.d-pc{border-left-color:var(--d-pc)}
+  .finding.hidden-until{border-color:var(--red);border-left-color:var(--red);background:var(--red-bg)}
+  .finding-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .finding-id{font:700 13px/1.3 var(--mono)}
+  .finding-id small{font:700 12px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--navy-ink);margin-left:8px}
+  .finding.hidden-until .finding-id small{color:var(--red-ink)}
+  .finding-amt{font:600 24px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
+  .finding p{margin:5px 0 0;font-size:14px;color:var(--ink-soft)}
+  .finding .via{margin-top:6px;font:400 12px/1.5 var(--mono);color:var(--ink-faint)}
+  .summary-box{margin:16px 18px 18px;padding:16px 18px;border-radius:10px;background:var(--blue);color:var(--cream);font-size:14.5px}
+  .summary-box h4{margin:0 0 6px;font:italic 600 21px/1.1 var(--serif);color:var(--gold-hi)}
+
+  .outcome{border-top:1.5px solid var(--ink);padding:16px 18px 18px}
+  .outcome h3{font:600 26px/1 var(--serif);margin:0 0 12px}
+  .branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .branch{border:1px solid var(--rule);background:var(--paper);border-radius:10px;padding:14px 16px}
+  .branch h4{margin:0 0 6px;font:400 12.5px/1 var(--mono);color:var(--ink-faint)}
+  .branch p{margin:0;font-size:14px;color:var(--ink-soft)}
+  .tally{font:600 40px/1 var(--serif);display:block;font-variant-numeric:lining-nums tabular-nums;margin-bottom:4px}
+
+  /* ---------- landing ---------- */
+  #v-home{padding:0}
+  .hero{position:relative;overflow:hidden;color:var(--cream);min-height:100vh;padding:26px 56px 34px;
+    display:grid;grid-template-rows:auto 1fr auto;gap:12px;
+    background:radial-gradient(circle at 74% 44%,var(--blue-hi) 0,var(--blue) 52%)}
+  .stars{position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(1px 1px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 33% 72%,#fff 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 58% 12%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 91% 64%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 47% 41%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 7% 88%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 82% 9%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 26% 52%,#fff 50%,transparent 51%)}
+  .hero>*{position:relative}
+  .hbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+  .hbar .brand{padding:0}
+  .hbar .brand b{font-size:17px}
+  .hbar-r{display:flex;align-items:center;gap:18px;font:400 12.5px/1 var(--mono);color:var(--cream-dim)}
+  .hbar-r button{background:none;border:1px solid rgba(244,238,221,.5);border-radius:999px;padding:9px 16px;cursor:pointer;
+    color:var(--cream);font:400 12.5px/1 var(--mono)}
+  .hbar-r button:hover{background:rgba(255,255,255,.08)}
+  .plate-row{display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:28px;align-items:center}
+  .eyebrow{font:400 13px/1.5 var(--mono);color:var(--gold-hi);margin-bottom:18px}
+  h1.title{font:500 clamp(54px,7vw,104px)/.94 var(--serif);letter-spacing:-.02em;margin:0 0 26px;color:var(--cream)}
+  h1.title em{font-style:italic;color:var(--gold-hi)}
+  .lede{font-size:20px;line-height:1.5;color:var(--cream-2);max-width:580px;margin:0 0 30px}
+  .lede b{font-weight:600;color:var(--cream)}
+  .ctas{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .cta{font:600 16px/1 var(--sans);padding:16px 24px;border-radius:999px;border:1.5px solid var(--cream);
+    display:inline-flex;gap:12px;align-items:center;background:transparent;color:var(--cream);cursor:pointer}
+  .cta:hover{background:rgba(255,255,255,.08)}
+  .cta.solid{background:var(--cream);color:var(--blue-deep)}
+  .cta.solid:hover{background:#fff}
+  .cta .ring{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--blue-deep);position:relative;flex:none}
+  .cta .ring::after{content:"";position:absolute;left:4.5px;top:4.5px;width:6px;height:6px;border-radius:50%;background:var(--red)}
+  .cta:focus-visible,.hbar-r button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px}
+  .facts{margin-top:26px;font:400 13px/1.7 var(--mono);color:var(--cream-dim)}
+  .plate{position:relative}
+  .plate svg{display:block;width:100%;height:auto;max-height:64vh}
+  .caption{margin:4px 0 0 24px;font:italic 500 19px/1.3 var(--serif);color:var(--cream-2)}
+  .caption b{font:400 12px/1 var(--mono);font-style:normal;color:var(--gold-hi);margin-right:10px}
+  .trail{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.6s .4s ease-out forwards}
+  .trail.t2{animation-delay:1.1s}.trail.t3{animation-delay:1.8s}
+  .late{opacity:0;animation:fade .5s 2.3s ease-out forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes fade{to{opacity:1}}
+  .how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid rgba(244,238,221,.4)}
+  .how>div{padding:20px 28px 0 0;display:grid;grid-template-columns:52px 1fr;gap:6px}
+  .how>div+div{padding-left:28px;border-left:1px solid rgba(244,238,221,.25)}
+  .how .rn{font:italic 500 38px/1 var(--serif);color:var(--gold-hi)}
+  .how h3{margin:0;font:600 28px/1.05 var(--serif);color:var(--cream)}
+  .how p{margin:6px 0 0;color:var(--cream-dim);font-size:15px}
+
+  body.is-home .shell{grid-template-columns:minmax(0,1fr)}
+  body.is-home nav.rail,body.is-home .topbar,body.is-home .stepbar{display:none}
+
+  @media (prefers-reduced-motion:reduce){
+    ol.timeline>li,.finding,td.cell.busy .mk,td.cell.fresh .mk{animation:none}
+    .trail{animation:none;stroke-dashoffset:0}.late{animation:none;opacity:1}}
+
+  @media (max-width:1180px){
+    .stepbar{grid-template-columns:auto minmax(0,1fr)}
+    .stepbar .hint{grid-column:1/-1;border-left:0;border-top:1px solid var(--rule)}
+    .ov-grid{grid-template-columns:1fr}.ov-grid .expo{border-right:0;border-bottom:1px solid var(--rule)}
+  }
+  @media (max-width:980px){
+    .runwrap{grid-template-columns:1fr}.runcol+.runcol{border-left:0;border-top:1px solid var(--rule)}
+    .plate-row{grid-template-columns:1fr}
+    .how{grid-template-columns:1fr}.how>div+div{padding-left:0;border-left:0;border-top:1px solid rgba(244,238,221,.25);margin-top:16px}
+  }
   @media (max-width:760px){
-    .shell{grid-template-columns:1fr}
-    .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding-bottom:6px}
-    .navlist button{white-space:nowrap}
-    .rail-foot{display:none}
-    .view{padding:16px}
+    .shell{grid-template-columns:minmax(0,1fr)}
+    nav.rail{padding:14px 0 8px}
+    .brand{padding:0 16px 10px}
+    nav.rail .org,.rail-foot{display:none}
+    .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding:0 8px}
+    .navlist button{white-space:nowrap;padding:10px 12px}
+    .topbar{padding:12px 16px}
+    .view{padding:18px 16px 40px}
+    .view-head h1{font-size:38px}
+    .stepbar{margin:16px 16px 0;grid-template-columns:1fr}
+    .stepbar ol{grid-template-columns:1fr 1fr}
+    .stepbar li:nth-child(3){border-left:0}
+    .stepbar li:nth-child(n+3){border-top:1px solid var(--rule)}
+    .kpi{border-left:0!important;border-top:1px solid var(--rule)}
+    .kpis{grid-template-columns:1fr 1fr}
+    .kpi:nth-child(even){border-left:1px solid var(--rule)!important}
+    .expo .v{font-size:52px}
+    .cells{grid-template-columns:repeat(16,minmax(0,1fr))}
+    ol.timeline{padding:8px}
+    ol.timeline>li,ol.timeline>li.dec{grid-template-columns:5px auto auto minmax(0,1fr) auto;
+      grid-template-areas:"e t k . st" "e b b b b"}
+    .tl-t,.tl-k{border-right:0;padding:9px 8px 0 10px}
+    .tl-st{border-left:0;flex-direction:row;padding:6px 10px;margin:6px 6px 0 0;border-radius:999px;align-self:start}
+    .tl-st b{font-size:17px}.tl-st span{display:none}
+    .tl-body{padding:6px 12px 12px}
+    .hero{padding:18px 16px 28px;min-height:0}
+    .hbar-r span{display:none}
+    .lede{font-size:17px}
+    .caption{margin-left:0}
+    .field+.field{padding-left:0;border-left:0}
   }
 </style>
 </head>
-<body>
+<body class="is-home">
 <div class="shell">
   <nav class="rail" aria-label="Sections">
-    <div class="brand"><b>Warrant</b><span>Authorization Control</span></div>
+    <button class="brand" id="brandHome" type="button" title="Back to the WARRANT home page">
+      <svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="#F4EEDD" stroke-width="1.5"/><ellipse cx="15" cy="15" rx="13" ry="5" fill="none" stroke="#E2B655" stroke-width="1.5" transform="rotate(-25 15 15)"/><circle cx="15" cy="15" r="4" fill="#F4EEDD"/></svg>
+      <span><b>Warrant</b><span>Authorization Control</span></span>
+    </button>
+    <div class="org"><b>Northwind Group</b><span>3 departments &middot; 4 agents</span></div>
     <ul class="navlist" id="nav">
-      <li><button type="button" data-view="overview" aria-current="page">Overview</button></li>
-      <li><button type="button" data-view="matrix">Grant Matrix</button></li>
-      <li><button type="button" data-view="fleet">Agent Fleet</button></li>
-      <li><button type="button" data-view="runs">Runs</button></li>
-      <li><button type="button" data-view="approvals">Approvals <span class="badge-n" id="navBadge" hidden>0</span></button></li>
-      <li><button type="button" data-view="audit">Audit</button></li>
+      <li><button type="button" data-view="overview" aria-current="page"><i></i>Overview</button></li>
+      <li><button type="button" data-view="matrix"><i></i>Grant Matrix</button></li>
+      <li><button type="button" data-view="fleet"><i></i>Agent Fleet</button></li>
+      <li><button type="button" data-view="runs"><i></i>Runs</button></li>
+      <li><button type="button" data-view="approvals"><i></i>Approvals <span class="badge-n" id="navBadge" hidden>0</span></button></li>
+      <li><button type="button" data-view="audit"><i></i>Audit</button></li>
     </ul>
-    <div class="rail-foot">Decision engine deterministic.<br>Nemotron classifies &amp; explains.</div>
+    <div class="rail-foot">decides &middot; <b>grant table</b><br>no model in the decision<br>explains &middot; <b>Nemotron</b><br>on Nebius Token Factory</div>
   </nav>
 
   <main class="stage">
     <div class="topbar">
-      <div class="crumb">Northwind Group &rsaquo; <b id="crumbView">Overview</b></div>
+      <div class="crumb">Northwind Group / <b id="crumbView">Overview</b></div>
       <button class="env" id="modePill" type="button" title="Enter a judge access code to run Nemotron live">replay</button>
       <span class="tier-pill" id="tierPill"><span class="dot" id="tierDot"></span> <span id="tierText">connecting</span></span>
       <span class="who"><span class="avatar">PE</span> Platform Engineering</span>
     </div>
 
-    <section class="view active" id="v-overview">
+    <div class="stepbar" id="stepBar" role="region" aria-label="Demo progress">
+      <div class="of"><b id="stepOf">Step 1 of 4</b><span>the demo, in order</span></div>
+      <ol>
+        <li><button type="button" data-step="1"><span class="n">1</span>Run the audit</button></li>
+        <li><button type="button" data-step="2"><span class="n">2</span>Review the refusal</button></li>
+        <li><button type="button" data-step="3"><span class="n">3</span>Approve the request</button></li>
+        <li><button type="button" data-step="4"><span class="n">4</span>Re-run</button></li>
+      </ol>
+      <div class="hint" id="stepHint"></div>
+    </div>
+
+    <section class="view active" id="v-home">
+      <div class="hero">
+        <div class="stars"></div>
+        <div class="hbar">
+          <div class="brand" aria-label="Warrant">
+            <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="#F4EEDD" stroke-width="1.5"/><ellipse cx="15" cy="15" rx="13" ry="5" fill="none" stroke="#E2B655" stroke-width="1.5" transform="rotate(-25 15 15)"/><circle cx="15" cy="15" r="4" fill="#F4EEDD"/></svg>
+            <b>WARRANT</b>
+          </div>
+          <div class="hbar-r"><span id="homeMode"></span><button type="button" data-go="overview">Console</button></div>
+        </div>
+
+        <div class="plate-row">
+          <div>
+            <div class="eyebrow">An authorization plane for agents that work across departments</div>
+            <h1 class="title">Every crossing<br>needs a <em>warrant.</em></h1>
+            <p class="lede">AI agents now do work that crosses department lines, and today they are either <b>over-granted every salary in the company</b> or <b>blocked while the overpayment goes through</b>, with nobody asking the data&rsquo;s owner.</p>
+            <div class="ctas">
+              <button class="cta solid" id="tourStart" type="button"><span class="ring"></span>Start guided tour</button>
+              <button class="cta" id="homeOpen" type="button" data-go="overview">Open the console</button>
+            </div>
+            <div class="facts">47 claims &middot; &pound;11,179.80 &middot; 4 agents &middot; 3 departments &middot; no&nbsp;model&nbsp;in&nbsp;the&nbsp;decision</div>
+          </div>
+
+          <figure class="plate" style="margin:0">
+            <svg viewBox="0 0 700 620" role="img" aria-label="Northwind Group drawn as an orbital system: Finance's request to Operations is granted; its request to People and Culture is refused.">
+              <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#F0CF7A"/></marker></defs>
+              <g stroke="#F4EEDD" stroke-opacity=".55" fill="none"><path d="M14 30V14H30M670 14H686V30M686 590V606H670M30 606H14V590"/></g>
+              <g font-family="Space Mono" font-size="12" fill="#D3D9EF"><text x="40" y="36">Northwind Group · Q3 2026</text><text x="660" y="36" text-anchor="end">47 claims</text></g>
+              <g fill="none" stroke="#F4EEDD">
+                <circle cx="350" cy="300" r="105" stroke-opacity=".4"/>
+                <circle cx="350" cy="300" r="185" stroke-opacity=".32"/>
+                <circle cx="350" cy="300" r="265" stroke-opacity=".26" stroke-dasharray="2 6"/>
+              </g>
+              <circle cx="350" cy="300" r="50" fill="#F4EEDD"/>
+              <circle cx="350" cy="300" r="62" fill="none" stroke="#E2B655"/>
+              <text x="350" y="297" text-anchor="middle" font-family="Space Mono" font-weight="700" font-size="13" letter-spacing="2" fill="#22398A">WARRANT</text>
+              <text x="350" y="314" text-anchor="middle" font-family="Space Mono" font-size="10.5" fill="#22398A">grant table</text>
+
+              <path class="trail" d="M118 410 C 210 400, 270 340, 300 318" stroke="#F4EEDD" stroke-width="1.6" fill="none"/>
+              <path class="trail t2" d="M384 258 C 410 220, 430 180, 448 146" stroke="#F0CF7A" stroke-width="2.6" fill="none" marker-end="url(#ah)"/>
+              <path class="trail t3" d="M398 330 C 450 360, 500 380, 540 390" stroke="#FF8A6E" stroke-width="2.6" fill="none"/>
+              <g class="late">
+                <line x1="550" y1="378" x2="544" y2="404" stroke="#FF8A6E" stroke-width="3.2"/>
+                <path d="M552 392 C 575 398, 590 410, 600 430" stroke="#F4EEDD" stroke-width="1.5" stroke-dasharray="4 5" fill="none"/>
+                <rect x="420" y="402" width="156" height="42" rx="6" fill="#C8432A"/>
+                <text x="432" y="420" font-family="Space Mono" font-size="12" fill="#fff" font-weight="700">REFUSED</text>
+                <text x="432" y="436" font-family="Space Mono" font-size="12" fill="#fff">no grant on record</text>
+              </g>
+
+              <circle cx="104" cy="416" r="15" fill="#E2B655"/>
+              <text x="66" y="454" font-family="Cormorant Garamond" font-size="26" font-weight="600" fill="#F4EEDD">Finance</text>
+              <text x="66" y="473" font-family="Space Mono" font-size="12" fill="#D3D9EF">Expense Auditor · asks</text>
+
+              <circle cx="458" cy="128" r="13" fill="none" stroke="#F4EEDD" stroke-width="1.5"/>
+              <circle cx="458" cy="128" r="5" fill="#F4EEDD"/>
+              <text x="482" y="120" font-family="Cormorant Garamond" font-size="26" font-weight="600" fill="#F4EEDD">Operations</text>
+              <text x="482" y="139" font-family="Space Mono" font-size="12" fill="#D3D9EF">Supplier.Contract</text>
+              <text x="482" y="158" font-family="Space Mono" font-size="12" fill="#F0CF7A">granted · warrant issued</text>
+
+              <circle cx="612" cy="452" r="17" fill="#2D4AA0" stroke="#FF8A6E" stroke-width="2"/>
+              <circle cx="612" cy="452" r="26" fill="none" stroke="#FF8A6E" stroke-dasharray="3 4"/>
+              <circle cx="612" cy="452" r="6" fill="#F4EEDD"/>
+              <text x="688" y="508" text-anchor="end" font-family="Cormorant Garamond" font-size="26" font-weight="600" fill="#F4EEDD">People &amp; Culture</text>
+              <text x="688" y="527" text-anchor="end" font-family="Space Mono" font-size="12" fill="#D3D9EF">Employee.Compensation · restricted</text>
+              <text x="688" y="546" text-anchor="end" font-family="Space Mono" font-size="12" fill="#D3D9EF">steward approves → re-run finds £290</text>
+
+              <circle cx="560" cy="300" r="7" fill="#F4EEDD" fill-opacity=".9"/>
+              <text x="574" y="304" font-family="Space Mono" font-size="12" fill="#D3D9EF">Steward Agent</text>
+            </svg>
+            <figcaption class="caption"><b>FIG. 1</b>Northwind Group: one agent, two requests, two verdicts.</figcaption>
+          </figure>
+        </div>
+
+        <div class="how">
+          <div><span class="rn">i.</span><div><h3>The agent asks</h3><p>Nemotron plans the audit and writes each request: which agent, what data, what purpose.</p></div></div>
+          <div><span class="rn">ii.</span><div><h3>WARRANT decides from who owns the data</h3><p>A grant table decides, not a model. A warrant, or a refusal that names the missing grant.</p></div></div>
+          <div><span class="rn">iii.</span><div><h3>The owner approves</h3><p>A Steward Agent reviews for People &amp; Culture and recommends. A person decides.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-overview">
       <div class="view-head"><h1>Overview</h1>
-        <p>Cross-boundary agent traffic. A refusal is not an incident &mdash; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
+        <p>Cross-boundary agent traffic. A refusal is not an incident; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
       <div class="banner" id="ovBanner" hidden></div>
-      <dl class="kpis">
-        <div class="kpi alert"><dt>Under query</dt><dd id="kRisk">&mdash;</dd><div class="sub">flagged by the audit</div></div>
-        <div class="kpi"><dt>Governed calls</dt><dd id="kCalls">0</dd><div class="sub">recorded</div></div>
-        <div class="kpi"><dt>Refusal rate</dt><dd id="kRate">&mdash;</dd><div class="sub">of all decisions</div></div>
-        <div class="kpi alert"><dt>Awaiting grant</dt><dd id="kPending">0</dd><div class="sub">requests in queue</div></div>
-        <div class="kpi"><dt>Claims blocked</dt><dd id="kBlocked">0</dd><div class="sub">waiting on a grant</div></div>
-        <div class="kpi good"><dt>Model coverage</dt><dd id="kCov">&mdash;</dd><div class="sub">grants across the matrix</div></div>
-      </dl>
       <div class="panel">
         <div class="panel-head"><h2>Q3 expense audit &middot; Northwind Group</h2>
           <button class="btn primary" id="ovRun" type="button">Run audit</button></div>
-        <div class="panel-body">
-          <p style="margin:0 0 11px;color:var(--ink-soft);max-width:78ch">The Expense Auditor (Finance) audits 47 Q3 claims worth &pound;11,179.80. Finance can read its own claims; every other check needs data a different department owns &mdash; so the agent has to ask WARRANT first, and WARRANT decides from who owns what.</p>
+        <div class="ov-grid">
+          <div class="expo">
+            <div class="l">under query</div>
+            <div class="v" id="kRisk">&mdash;</div>
+            <div class="cells" id="ovCells" aria-label="47 claims, not yet checked"></div>
+            <div class="cells-legend" id="ovLegend"></div>
+            <p>The Expense Auditor (Finance) audits 47 Q3 claims worth &pound;11,179.80. Finance can read its own claims; every other check needs data a different department owns, so the agent has to ask WARRANT first.</p>
+          </div>
           <div class="tscroll"><table>
             <thead><tr><th>Check</th><th>Needs</th><th>Owned by</th><th>Result</th></tr></thead>
             <tbody>
@@ -319,6 +559,13 @@
             </tbody></table></div>
         </div>
       </div>
+      <dl class="kpis">
+        <div class="kpi"><dt><i></i>governed calls</dt><dd id="kCalls">0</dd><div class="sub">recorded</div></div>
+        <div class="kpi"><dt><i></i>refusal rate</dt><dd id="kRate">&mdash;</dd><div class="sub">of all decisions</div></div>
+        <div class="kpi alert"><dt><i></i>awaiting grant</dt><dd id="kPending">0</dd><div class="sub">requests in queue</div></div>
+        <div class="kpi alert"><dt><i></i>claims blocked</dt><dd id="kBlocked">0</dd><div class="sub">waiting on a grant</div></div>
+        <div class="kpi good"><dt><i></i>grants held</dt><dd id="kCov">&mdash;</dd><div class="sub">across the matrix</div></div>
+      </dl>
     </section>
 
     <section class="view" id="v-matrix">
@@ -329,44 +576,50 @@
         <div class="tscroll"><table class="matrix" id="matrix"><thead></thead><tbody></tbody></table></div>
         <div class="legend">
           <span><i class="sw y"></i> grant held</span>
-          <span><i class="sw n"></i> no grant &mdash; never requested</span>
-          <span><i class="sw x"></i> no grant &mdash; requested and refused</span>
+          <span><i class="sw n"></i> no grant, never requested</span>
+          <span><i class="sw x"></i> no grant, requested and refused</span>
         </div>
       </div>
     </section>
 
     <section class="view" id="v-fleet">
       <div class="view-head"><h1>Agent Fleet</h1>
-        <p>Every agent is registered against the capability it serves and the data entities it declares. An unregistered agent has no authority at all &mdash; WARRANT fails closed.</p></div>
+        <p>Every agent is registered against the capability it serves and the data entities it declares. An unregistered agent has no authority at all; WARRANT fails closed.</p></div>
       <div class="fleet" id="fleet"></div>
     </section>
 
     <section class="view" id="v-runs">
       <div class="view-head"><h1>Runs</h1>
-        <p>Nemotron plans the audit and writes every request. WARRANT decides each one from the architecture model &mdash; no model in that decision. A refusal comes back as reasons the agent replans around, not an error.</p></div>
+        <p>Nemotron plans the audit and writes every request. WARRANT decides each one from the architecture model, with no model in that decision. A refusal comes back as reasons the agent replans around, not an error.</p></div>
       <div class="panel">
-        <div class="panel-head"><h2>expense-auditor &middot; Q3 audit &middot; live</h2>
+        <div class="panel-head"><h2>expense-auditor &middot; Q3 audit</h2>
           <span class="chip" id="runState">idle</span>
-          <button class="btn primary" id="runBtn" type="button">Run</button>
-          <button class="btn" id="resetBtn" type="button">Reset demo</button></div>
+          <button class="btn" id="resetBtn" type="button">Reset demo</button>
+          <button class="btn primary" id="runBtn" type="button">Run</button></div>
         <div class="runwrap">
           <div class="runcol">
             <div class="col-head">Live trace <span class="who-model" id="modelTag"></span></div>
             <ol class="timeline" id="timeline"><li class="tl-empty">Press Run to start the audit. Every plan, warrant, refusal and finding appears here as it happens.</li></ol>
           </div>
           <div class="runcol">
-            <div class="col-head">Findings <span class="chip" id="riskChip">&pound;0.00</span></div>
+            <div class="col-head">Findings</div>
+            <div class="expo expo-run">
+              <div class="l">under query</div>
+              <div class="v" id="riskChip">&pound;0.00</div>
+              <div class="cells" id="outcomeBar" aria-label="47 claims, not yet checked"></div>
+              <div class="cells-legend" id="outcomeLegend"></div>
+            </div>
             <div id="findings"><div class="empty">Nothing flagged yet.</div></div>
           </div>
         </div>
-        <div class="summary-box" id="summaryBox" hidden><h4>Audit summary &middot; written by Nemotron</h4><div id="summaryText"></div></div>
+        <div class="summary-box" id="summaryBox" hidden><h4>Audit summary, written by Nemotron</h4><div id="summaryText"></div></div>
         <div class="outcome" id="outcome" hidden><h3 id="outcomeHead">Replanned</h3><div class="branches" id="branches"></div></div>
       </div>
     </section>
 
     <section class="view" id="v-approvals">
       <div class="view-head"><h1>Approvals</h1>
-        <p>Grant requests raised by agents, addressed to the organisation unit that stewards the data. Approving one writes a grant into the model &mdash; the next run resolves without a refusal.</p></div>
+        <p>Grant requests raised by agents, addressed to the organisation unit that stewards the data. Approving one writes a grant into the model; the next run resolves without a refusal.</p></div>
       <div class="banner" id="apBanner" hidden></div>
       <div id="reqList"></div>
     </section>
@@ -394,7 +647,7 @@
 (function () {
   "use strict";
   var $ = function (i) { return document.getElementById(i); };
-  var M = null, AUDIT = [], REQS = [], RUNNING = false;
+  var M = null, AUDIT = [], REQS = [], RUNNING = false, LAST = null;
   // Live: a judge (or no key configured) runs Nemotron for real. Replay: the
   // recorded live run in replay.json, played back here; it spends nothing and
   // every visitor gets their own copy, so one visitor's approval never
@@ -414,18 +667,65 @@
   }
 
   /* ---- nav ---- */
-  var VIEWS = ["overview", "matrix", "fleet", "runs", "approvals", "audit"];
+  var VIEWS = ["home", "overview", "matrix", "fleet", "runs", "approvals", "audit"];
+  var CRUMB = { home: "Home", overview: "Overview", matrix: "Grant Matrix", fleet: "Agent Fleet",
+    runs: "Runs", approvals: "Approvals", audit: "Audit" };
+  var CURRENT = "home";
   function show(n) {
+    if (VIEWS.indexOf(n) < 0) n = "home";
+    CURRENT = n;
     VIEWS.forEach(function (v) { $("v-" + v).classList.toggle("active", v === n); });
     Array.prototype.forEach.call($("nav").querySelectorAll("button"), function (b) {
       if (b.getAttribute("data-view") === n) b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
     });
-    $("crumbView").textContent = n.charAt(0).toUpperCase() + n.slice(1);
+    document.body.classList.toggle("is-home", n === "home");
+    $("crumbView").textContent = CRUMB[n];
+    var want = n === "home" ? location.pathname + location.search : "#" + n;
+    if ((n === "home" ? location.hash : location.hash !== "#" + n) && history.replaceState) history.replaceState(null, "", want);
+    updateSteps();
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call($("nav").querySelectorAll("button"), function (b) {
     b.addEventListener("click", function () { show(b.getAttribute("data-view")); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function (b) {
+    b.addEventListener("click", function () { show(b.getAttribute("data-go")); });
+  });
+  // The tour engine is added later; for now the tour opens the console.
+  $("tourStart").addEventListener("click", function () { show("overview"); });
+  $("brandHome").addEventListener("click", function () { show("home"); });
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+
+  /* ---- step bar: derived from run / request state ---- */
+  var STEP_VIEW = { 1: "overview", 2: "runs", 3: "approvals", 4: "runs" };
+  var STEP_HINT = {
+    1: "Run the Q3 audit. The agent has to ask WARRANT before it reads another department's data.",
+    2: "One request was refused. Read why in the trace, then open the grant request in Approvals.",
+    3: "The Steward Agent has reviewed the request. Approve it as People & Culture.",
+    4: "The grant is now in the model. Run the audit again.",
+    5: "Every claim checked. The grant let the agent find what the first run could not see."
+  };
+  function currentStep() {
+    if (LAST && !LAST.unresolved) return 5;
+    var pending = REQS.some(function (r) { return r.state === "pending"; });
+    if (pending) return CURRENT === "approvals" ? 3 : 2;
+    if (REQS.some(function (r) { return r.state === "approved"; })) return 4;
+    return LAST ? 2 : 1;
+  }
+  function updateSteps() {
+    var s = currentStep(), bar = $("stepBar");
+    bar.classList.toggle("complete", s === 5);
+    $("stepOf").textContent = s === 5 ? "All 4 done" : "Step " + s + " of 4";
+    $("stepHint").textContent = STEP_HINT[s];
+    Array.prototype.forEach.call(bar.querySelectorAll("li"), function (li, i) {
+      li.className = i + 1 < s ? "done" : i + 1 === s ? "now" : "";
+      var b = li.querySelector("button");
+      if (i + 1 === s) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+    });
+  }
+  Array.prototype.forEach.call($("stepBar").querySelectorAll("button[data-step]"), function (b) {
+    b.addEventListener("click", function () { show(STEP_VIEW[b.getAttribute("data-step")]); });
   });
 
   /* ---- health / tier ---- */
@@ -436,6 +736,13 @@
     var fast = t.fast || {};
     $("tierText").textContent = "fast: " + (fast.kind || "?") + " · " + (fast.model || "").split("/").pop();
     $("tierPill").title = JSON.stringify(t, null, 1);
+  }
+
+  /* ---- departments (strip edges, card edges) ---- */
+  var DEPT = { finance: "d-fin", operations: "d-ops", people: "d-pc" };
+  function agentOrg(id) {
+    var a = M ? M.agents.filter(function (x) { return x.id === id; })[0] : null;
+    return a ? a.org : "";
   }
 
   /* ---- model / matrix ---- */
@@ -484,7 +791,7 @@
     var orgName = {}; M.org_units.forEach(function (o) { orgName[o.id] = o.name; });
     var capName = {}; M.capabilities.forEach(function (c) { capName[c.id] = c.name; });
     M.agents.forEach(function (a) {
-      var d = el("div", "agent");
+      var d = el("div", "agent " + (DEPT[a.org] || ""));
       d.appendChild(el("h3", null, a.name));
       d.appendChild(el("div", "org", (orgName[a.org] || a.org) + " · " + (capName[a.serves] || a.serves)));
       var dl = document.createElement("dl");
@@ -492,7 +799,7 @@
       var dd1 = el("dd");
       dd1.appendChild(el("span", "tag " + (a.id === "expense-auditor" ? "ok" : "mute"),
         a.id === "expense-auditor" ? "planner" : "serving"));
-      if (a.external) dd1.appendChild(el("span", "tag warn", "external"));
+      if (a.external) dd1.appendChild(el("span", "tag bad", "external"));
       dl.appendChild(dd1);
       dl.appendChild(el("dt", null, "Declares"));
       var dd2 = el("dd");
@@ -533,7 +840,7 @@
       tr.appendChild(el("td", "num", r.caller));
       tr.appendChild(el("td", "num", r.callee));
       var e = el("td"); (r.entities_touched || []).forEach(function (x) {
-        e.appendChild(el("span", "chip", x)); }); tr.appendChild(e);
+        e.appendChild(el("span", "chip", x)); e.appendChild(document.createTextNode(" ")); }); tr.appendChild(e);
       tr.appendChild(el("td", "num", (r.tier_used || "-") + "/" + (r.provider_kind || "-")));
       tr.appendChild(el("td", "num", Math.round(r.latency_ms || 0) + " ms"));
       b.appendChild(tr);
@@ -569,10 +876,11 @@
     $("navBadge").textContent = String(pending.length);
     $("kPending").textContent = pending.length;
     $("kBlocked").textContent = pending.reduce(function (a, r) { return a + (r.blocking || 0); }, 0);
+    updateSteps();
 
     if (!REQS.length) {
       var p = el("div", "panel");
-      p.appendChild(el("div", "empty", "No grant requests. Run the Q3 reconciliation to raise one."));
+      p.appendChild(el("div", "empty", "No grant requests. Run the Q3 audit to raise one."));
       list.appendChild(p); return;
     }
 
@@ -580,13 +888,14 @@
       var st = stewardOf(r.data_entity);
       var box = el("div", "req");
       var head = el("div", "req-head");
+      if (DEPT[st.id]) head.style.borderLeftColor = "var(--" + DEPT[st.id] + ")";
       head.appendChild(el("span", "t", "GR-" + r.id + "  ·  " + r.capability + " → " + r.data_entity));
       head.appendChild(el("span", "tag " + (r.state === "pending" ? "warn" : r.state === "approved" ? "ok" : "mute"),
         r.state === "pending" ? "awaiting decision" : r.state));
       box.appendChild(head);
 
       var body = el("div", "req-body");
-      var fields = el("div", "fields");
+      var fields = el("dl", "fields");
       var de = (M ? M.data_entities.filter(function (e) { return e.id === r.data_entity; })[0] : null) || {};
       [["Requested by", r.requested_by], ["Steward", st.name],
        ["Classification", de.classification || "—"],
@@ -597,7 +906,7 @@
       body.appendChild(fields);
       if (r.reason) {
         var rw = el("div");
-        rw.appendChild(el("label", "rl", "Request \u00b7 from " + r.requested_by));
+        rw.appendChild(el("label", "rl", "Request · from " + r.requested_by));
         rw.appendChild(el("div", "justify", r.reason));
         body.appendChild(rw);
       }
@@ -685,7 +994,7 @@
   function reviewBox(rv) {
     var box = el("div", "review");
     var head = el("div", "review-head");
-    head.appendChild(document.createTextNode("Steward Agent review \u00b7 "
+    head.appendChild(document.createTextNode("Steward Agent review · "
       + (rv.by_model ? "Nemotron" : "rules, no model")));
     var rec = rv.recommendation || "";
     head.appendChild(el("span", "tag " + (rec === "decline" ? "bad" : rec === "approve" ? "ok" : "warn"),
@@ -702,11 +1011,9 @@
   }
 
   var KIND = {
-    start: ["task", "mute"], plan: ["plan", "ok"], granted: ["granted", "ok"],
-    refused: ["refused", "bad"], replan: ["replan", "warn"], finding: ["finding", "warn"],
-    reconciled: ["audit", "mute"], escalate: ["escalate", "warn"], report: ["report", "ok"],
-    review: ["steward", "warn"],
-    error: ["error", "bad"]
+    start: "task", plan: "plan", granted: "granted", refused: "refused", replan: "replan",
+    finding: "finding", reconciled: "audit", escalate: "escalate", report: "report",
+    review: "steward", error: "error"
   };
   var RISK = 0, FOUND = {};
 
@@ -715,12 +1022,31 @@
   }
   function shortModel(m) { return (m || "").split("/").pop(); }
 
+  // The 47-cell outcome bar: one cell per claim, verified / flagged / blocked.
+  function renderCells(barId, legendId, out) {
+    var bar = $(barId), lg = $(legendId);
+    var total = out ? out.total : 47, f = out ? (out.flagged || []).length : 0,
+      x = out ? (out.unresolved || 0) : 0, g = out ? out.closed : 0;
+    bar.textContent = ""; lg.textContent = "";
+    for (var i = 0; i < total; i++)
+      bar.appendChild(el("i", !out ? "" : i < g ? "g" : i < g + f ? "f" : i < g + f + x ? "x" : ""));
+    bar.setAttribute("aria-label", out ? total + " claims: " + g + " verified, " + f + " flagged, " + x + " blocked"
+      : total + " claims, not yet checked");
+    if (!out) { lg.appendChild(el("span", null, total + " claims, not yet checked")); return; }
+    [["g", g, "verified"], ["f", f, "flagged"], ["x", x, "blocked"]].forEach(function (p) {
+      var s = el("span", p[0]); s.appendChild(el("b", null, String(p[1])));
+      s.appendChild(document.createTextNode(p[2])); lg.appendChild(s);
+    });
+    lg.appendChild(el("span", "tot", "of " + total));
+  }
+
   function resetLive() {
     $("timeline").textContent = "";
     $("findings").textContent = "";
     $("findings").appendChild(el("div", "empty", "Nothing flagged yet."));
     $("riskChip").textContent = money(0);
     $("summaryBox").hidden = true; $("outcome").hidden = true;
+    renderCells("outcomeBar", "outcomeLegend", null);
     RISK = 0; FOUND = {};
   }
 
@@ -729,14 +1055,16 @@
     FOUND[f.claim] = true;
     var box = $("findings");
     var empty = box.querySelector(".empty"); if (empty) empty.remove();
-    var d = el("div", "finding" + (f.evidence === "Employee.Compensation" ? " hidden-until" : ""));
+    var st = stewardOf(f.evidence);
+    var d = el("div", "finding " + (DEPT[st.id] || "") + (f.evidence === "Employee.Compensation" ? " hidden-until" : ""));
     d.setAttribute("data-claim", f.claim);
     var top = el("div", "finding-top");
-    top.appendChild(el("span", "finding-id", f.claim + " · " + f.kind));
+    var id = el("span", "finding-id", f.claim);
+    id.appendChild(el("small", null, (f.kind || "").replace(/-/g, " ")));
+    top.appendChild(id);
     top.appendChild(el("span", "finding-amt", money(f.amount)));
     d.appendChild(top);
     d.appendChild(el("p", null, f.detail));
-    var st = stewardOf(f.evidence);
     d.appendChild(el("div", "via", "only visible with " + f.evidence
       + (f.evidence === "Expense.Claim" ? " (Finance's own data)" : " — owned by " + st.name)));
     box.appendChild(d);
@@ -747,12 +1075,18 @@
   function addEvent(e) {
     var tl = $("timeline");
     var empty = tl.querySelector(".tl-empty"); if (empty) empty.remove();
-    var k = KIND[e.kind] || [e.kind, "mute"];
     var d = e.data || {};
+    var dec = e.kind === "granted" || e.kind === "refused";
+    // Which department's strip this is: the callee's, the data steward's, else Finance (the auditor).
+    var org = d.callee ? agentOrg(d.callee)
+      : (e.kind === "escalate" || e.kind === "review") ? (stewardOf(d.data_entity || "Employee.Compensation").id || "people")
+      : "finance";
     var li = document.createElement("li");
+    li.className = (DEPT[org] || "") + (dec ? " dec " + (e.kind === "granted" ? "ok" : "no") : "");
     li.setAttribute("data-kind", e.kind);
-    li.appendChild(el("span", "tl-t", ((e.t || 0) / 1000).toFixed(1) + "s"));
-    var kd = el("span", "tl-k"); kd.appendChild(el("span", "tag " + k[1], k[0])); li.appendChild(kd);
+    li.appendChild(el("i", "tl-e"));
+    li.appendChild(el("span", "tl-t", "T+" + ((e.t || 0) / 1000).toFixed(1)));
+    li.appendChild(el("span", "tl-k", KIND[e.kind] || e.kind));
     var body = el("div", "tl-body");
     body.appendChild(el("div", "tl-text", e.text));
 
@@ -765,13 +1099,13 @@
       var ul = el("ul", "tl-steps");
       (d.steps || []).forEach(function (st) {
         var item = document.createElement("li");
-        item.appendChild(el("b", null, "→ " + st.callee + "  "));
+        item.appendChild(el("b", null, st.callee + "  "));
         item.appendChild(document.createTextNode("“" + st.purpose + "”"));
         ul.appendChild(item);
       });
       body.appendChild(ul);
     }
-    if (e.kind === "granted" || e.kind === "refused") {
+    if (dec) {
       if (d.purpose) body.appendChild(el("div", "tl-quote" + (e.kind === "refused" ? " bad" : ""),
         (d.retry ? "retry, narrowed: " : "") + "“" + d.purpose + "”"));
       var sub2 = el("div", "tl-sub");
@@ -805,6 +1139,12 @@
       body.appendChild(el("div", "tl-quote", "“" + d.reason + "”"));
     }
     li.appendChild(body);
+    if (dec) {
+      var stb = el("div", "tl-st");
+      stb.appendChild(el("b", null, e.kind === "granted" ? "Granted" : "Refused"));
+      stb.appendChild(el("span", null, e.kind === "granted" ? (d.warrant ? "warrant " + d.warrant : "warrant issued") : "no grant held"));
+      li.appendChild(stb);
+    }
     tl.appendChild(li);
     tl.scrollTop = tl.scrollHeight;
   }
@@ -814,6 +1154,7 @@
   }
 
   function renderOutcome(out) {
+    LAST = out;
     var kinds = {};
     (out.flagged || []).forEach(function (f) { kinds[f.kind] = (kinds[f.kind] || 0) + 1; addFinding(f); });
     var blocked = out.blocked_entities || [];
@@ -826,30 +1167,33 @@
     checkResult("ovC3", res("no-rostered-trip", "Employee.Roster"));
     checkResult("ovC4", res("over-band", "Employee.Compensation"));
     $("kRisk").textContent = money(out.at_risk);
+    renderCells("outcomeBar", "outcomeLegend", out);
+    renderCells("ovCells", "ovLegend", out);
 
     if (out.summary) { $("summaryText").textContent = out.summary; $("summaryBox").hidden = false; }
 
     var o = $("outcome"), br = $("branches"); br.textContent = ""; o.hidden = false;
-    var b1 = el("div", "branch"); b1.appendChild(el("h4", null, "Verified"));
+    var b1 = el("div", "branch"); b1.appendChild(el("h4", null, "verified"));
     b1.appendChild(el("span", "tally", out.closed + " / " + out.total));
     b1.appendChild(el("p", null, (out.flagged || []).length + " flagged, " + money(out.at_risk) + " under query."));
     br.appendChild(b1);
     if (out.unresolved) {
       $("outcomeHead").textContent = "Replanned";
-      var b2 = el("div", "branch"); b2.appendChild(el("h4", null, "Blocked"));
+      var b2 = el("div", "branch"); b2.appendChild(el("h4", null, "blocked"));
       b2.appendChild(el("span", "tally", String(out.unresolved)));
       b2.appendChild(el("p", null, "claims could not be checked without " + blocked.join(", ")
         + ". A grant request is waiting in Approvals."));
       br.appendChild(b2);
     } else {
       $("outcomeHead").textContent = "Complete";
-      var b3 = el("div", "branch"); b3.appendChild(el("h4", null, "Every claim checked"));
+      var b3 = el("div", "branch"); b3.appendChild(el("h4", null, "every claim checked"));
       b3.appendChild(el("p", null, "Nothing left blocked. The grant approved in Approvals let the agent check the allowances."));
       br.appendChild(b3);
     }
     $("runState").textContent = (out.unresolved ? "replanned · " : "complete · ")
       + out.closed + "/" + out.total + " verified";
     markGaps(blocked);
+    updateSteps();
   }
 
   function finishRun() {
@@ -915,7 +1259,9 @@
     if (MODE === "replay") {
       PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
     } else await api("/v1/demo/reset", { method: "POST" });
+    LAST = null;
     resetLive();
+    renderCells("ovCells", "ovLegend", null);
     var tl = $("timeline"); tl.textContent = "";
     tl.appendChild(el("li", "tl-empty", "Press Run to start the audit. Every plan, warrant, refusal and finding appears here as it happens."));
     $("runState").textContent = "idle";
@@ -934,6 +1280,7 @@
     p.classList.toggle("live", live);
     p.title = live ? "Runs call Nemotron on Nebius Token Factory for real." + (why ? " " + why + "." : "")
       : (why || "A recorded live run, played back in your browser. Judges: click to enter your access code and run it live.");
+    $("homeMode").textContent = live ? "live · Nemotron on Nebius" : "replay · a recorded live run";
   }
 
   $("modePill").addEventListener("click", async function () {
@@ -947,6 +1294,10 @@
       setMode(true); await loadModel(); await loadAudit(); await loadRequests();
     } else { KEY = ""; window.alert("That code was not accepted. Replay mode stays on."); }
   });
+
+  renderCells("outcomeBar", "outcomeLegend", null);
+  renderCells("ovCells", "ovLegend", null);
+  show(location.hash.slice(1));
 
   (async function () {
     var a = await api("/v1/access");
