@@ -92,7 +92,7 @@ visit takes a few seconds longer.
 - **One client, any tier.** One OpenAI-compatible client serves Token Factory
   and self-hosted vLLM; which model serves a job is one line of config, with a
   fallback when a tier is unreachable.
-- **Rigor.** 99 tests. An adversarial review of our own code: 40 confirmed
+- **Rigor.** 102 tests. An adversarial review of our own code: 40 confirmed
   findings, all fixed. A classifier eval that reports recall first, because a
   missed entity is a security failure and an extra one is only an inconvenience.
 

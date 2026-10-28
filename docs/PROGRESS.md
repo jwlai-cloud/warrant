@@ -28,6 +28,18 @@
   (`docs/architecture.html` / `.png`) ringed band by band. No live link in it;
   the close card says the link and code are in the submission.
 
+### LangGraph 1.2 refactor (review + research agents, refactor in a worktree)
+The Expense Auditor now follows current 1.x idioms: dependencies through
+`context_schema` / `Runtime`, claims as graph input with input/output schemas,
+`trace` with an `operator.add` reducer and live events through
+`get_stream_writer()` / `stream_mode="custom"`, and replanning as a real bounded
+loop (`replan` returns `Command(goto="gather")`, at most one retry pass, then a
+separate `escalate` node). The plan is validated with Pydantic, a failing call
+becomes a refusal instead of crashing the run, the stream endpoint can no longer
+start two runs at once, model failures are logged, and a missing band or
+contract is flagged for query instead of passing. Offline output is
+byte-identical to before; the live run still lands on £2,561 then £2,851.
+
 ### Judging pass (hackathon-judge skill, against the rules and the judges' session)
 Tech 7.5 · Design 8.5 · Impact 8 · Idea 8.5 before the Ultra change. Gaps fixed
 since: README now has "Built with NVIDIA Nemotron on Nebius Token Factory" with
@@ -36,7 +48,7 @@ longer claims a self-hosted tier is live. Not done: a per-run cost receipt, and
 a stake in the video's first 10 seconds.
 
 ### Numbers
-99 tests. Live: run 1 £2,561.00 (38/3/6), run 2 £2,851.00 (43/4/0), CLM-3606.
+102 tests. Live: run 1 £2,561.00 (38/3/6), run 2 £2,851.00 (43/4/0), CLM-3606.
 
 ## 2026-09-20 — session 4 (full adversarial review, and fixing what it found)
 
