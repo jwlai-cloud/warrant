@@ -157,7 +157,7 @@ async def main() -> None:
          "--port", str(PORT)], cwd=ROOT, env=_env(),
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     cards = (ROOT / "demo" / "cards.html").as_uri()
-    topo = (ROOT / "docs" / "topology.html").as_uri()
+    topo = (ROOT / "docs" / "architecture.html").as_uri()
     beats: list[dict] = []
     errors: list[str] = []
     result: dict = {}

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>WARRANT architecture</title>
+<!-- Fig. 2: one request's path through WARRANT, in three bands. Drawn at
+     1920x1080 for the video (scripts/capture_demo.py rings each band as the
+     narration reaches it) and the Devpost gallery. Same visual system as the
+     app: docs and the landing page's Fig. 1. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Work+Sans:wght@400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+  :root{--blue:#2D4AA0;--blue-deep:#22398A;--cream:#F4EEDD;--gold:#E2B655;--gold-ink:#7A5A0E;--gold-bg:#F8EBC6;
+    --red:#C8432A;--red-ink:#B23A22;--red-bg:#FBE4DC;--ink:#14204A;--ink-soft:#46507A;--ink-faint:#5E6687;
+    --paper:#F6F1E4;--surface:#FFFDF8;--rule:#DCD2BA;--navy-bg:#E3E7F5;
+    --d-fin:#D9A441;--d-ops:#3E64C8;--d-pc:#B5578A;
+    --serif:"Cormorant Garamond",Georgia,serif;--sans:"Work Sans",system-ui,sans-serif;--mono:"Space Mono",monospace}
+  html,body{margin:0;background:var(--paper)}
+  #arch{width:1920px;height:1080px;box-sizing:border-box;padding:46px 64px 40px;color:var(--ink);
+    font:400 18px/1.35 var(--sans);display:grid;grid-template-rows:auto 1fr 1fr 1fr auto;gap:14px;
+    font-variant-numeric:lining-nums}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;padding-bottom:6px}
+  header .fig{font:700 15px/1 var(--mono);color:var(--gold-ink);letter-spacing:.12em}
+  header h1{margin:8px 0 0;font:500 54px/1 var(--serif);letter-spacing:-.01em}
+  header h1 em{color:var(--blue)}
+  #stack{font:400 16px/1.7 var(--mono);color:var(--ink-soft);text-align:right}
+  #stack b{color:var(--ink);font-weight:700}
+
+  .band{display:grid;grid-template-columns:230px 1fr;background:var(--surface);border:1px solid var(--rule);
+    border-left:6px solid var(--edge);border-radius:4px;min-height:0}
+  .band .lab{padding:18px 20px;border-right:1px solid var(--rule);display:flex;flex-direction:column;justify-content:center;gap:4px}
+  .band .rn{font:italic 500 46px/1 var(--serif);color:var(--edge-ink)}
+  .band h2{margin:0;font:600 32px/1 var(--serif)}
+  .band .where{font:400 15px/1.3 var(--mono);color:var(--ink-faint)}
+  .flow{display:flex;align-items:center;padding:16px 22px;gap:0;min-width:0}
+  #bandPlan{--edge:var(--d-fin);--edge-ink:var(--gold-ink)}
+  #bandDecide{--edge:var(--blue);--edge-ink:var(--blue)}
+  #bandEscalate .arr{flex-basis:104px}
+  #bandEscalate{--edge:var(--d-pc);--edge-ink:#8E3D68}
+
+  .node{border:1.5px solid var(--ink);background:#fff;border-radius:4px;padding:12px 16px;flex:1 1 0;min-width:0}
+  .node b{display:block;font:600 25px/1.05 var(--serif);margin-bottom:5px}
+  .node p{margin:0;font-size:17px;color:var(--ink-soft)}
+  .node .m{display:block;font:400 14.5px/1.35 var(--mono);color:var(--ink-faint);margin-top:6px}
+  .node.agent{box-shadow:inset 4px 0 0 var(--dept)}
+  .node.decide{border:3px solid var(--blue-deep);background:var(--navy-bg)}
+  .node.decide b{color:var(--blue-deep)}
+  .node.ok{border-color:var(--gold);background:var(--gold-bg)}
+  .node.ok b{color:var(--gold-ink)}
+  .node.no{border-color:var(--red);background:var(--red-bg)}
+  .node.no b{color:var(--red-ink)}
+  .node.person{border-style:dashed;border-color:#8E3D68}
+  .fin{--dept:var(--d-fin)}.ops{--dept:var(--d-ops)}.pc{--dept:var(--d-pc)}
+  .chips{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+  .chip{font:400 14.5px/1 var(--mono);display:flex;align-items:center;gap:8px;color:var(--ink)}
+  .chip i{width:9px;height:9px;border-radius:50%;background:var(--dept);flex:none}
+
+  .arr{flex:0 0 92px;position:relative;height:40px;display:flex;align-items:flex-end;justify-content:center}
+  .arr::before{content:"";position:absolute;left:8px;right:12px;top:50%;border-top:2px solid var(--ink)}
+  .arr::after{content:"";position:absolute;right:6px;top:calc(50% - 6px);border:6px solid transparent;border-left:9px solid var(--ink);border-right:0}
+  .arr span{font:400 13px/1 var(--mono);color:var(--ink-soft);position:absolute;top:0;white-space:nowrap}
+  .arr.ok::before{border-color:var(--gold)}.arr.ok::after{border-left-color:var(--gold)}
+  .arr.no::before{border-color:var(--red)}.arr.no::after{border-left-color:var(--red)}
+  .split{flex:2.3 1 0;display:grid;grid-template-rows:1fr 1fr;gap:10px;min-width:0}
+  .split .row{display:flex;align-items:center;min-width:0}
+  .split .node{padding:8px 14px}
+  .split .node b{font-size:22px;margin-bottom:2px}
+  .split .node p{font-size:15.5px}
+
+  #diff{display:grid;grid-template-columns:auto repeat(3,1fr);gap:0;border-top:1.5px solid var(--ink);padding-top:14px}
+  #diff h3{margin:0;padding-right:34px;font:italic 500 28px/1.05 var(--serif);color:var(--blue);align-self:center;max-width:220px}
+  #diff div{padding:0 26px;border-left:1px solid var(--rule)}
+  #diff b{display:block;font:600 24px/1.1 var(--serif);margin-bottom:4px}
+  #diff p{margin:0;font-size:16.5px;color:var(--ink-soft)}
+</style></head><body>
+<main id="arch" role="img" aria-label="WARRANT architecture: the Expense Auditor plans with Nemotron; WARRANT decides each request from a grant table with no model in the decision; refused requests go to the data owner's Steward Agent and a person approves.">
+  <header>
+    <div>
+      <div class="fig">FIG. 2</div>
+      <h1>How a request crosses a <em>department line</em></h1>
+    </div>
+    <div id="stack">
+      <b>NVIDIA Nemotron 3</b> Nano 30B + Super 120B on <b>Nebius Token Factory</b><br>
+      LangGraph agent · WARRANT is an <b>MCP server</b> · FastAPI
+    </div>
+  </header>
+
+  <section class="band" id="bandPlan">
+    <div class="lab"><span class="rn">i.</span><h2>Plan</h2><span class="where">in Finance</span></div>
+    <div class="flow">
+      <div class="node agent fin" id="auditor"><b>Expense Auditor</b><p>Finance's agent audits 47 Q3 claims, £11,179.80</p><span class="m">LangGraph · 4 checks</span></div>
+      <div class="arr"><span>plans with</span></div>
+      <div class="node"><b>Nemotron 3 Super</b><p>Writes the plan: which agent, which data, what purpose</p><span class="m">120B · Token Factory</span></div>
+      <div class="arr"><span>asks for</span></div>
+      <div class="node" style="flex:1.15"><b>Three requests</b>
+        <div class="chips">
+          <span class="chip ops"><i></i>Supplier.Contract · Operations</span>
+          <span class="chip pc"><i></i>Employee.Roster · People &amp; Culture</span>
+          <span class="chip pc"><i></i>Employee.Compensation · restricted</span>
+        </div></div>
+      <div class="arr"><span>each one</span></div>
+      <div class="node" style="flex:.8;border-color:var(--blue)"><b>to WARRANT</b><p>No agent reads another department's data without asking</p></div>
+    </div>
+  </section>
+
+  <section class="band" id="bandDecide">
+    <div class="lab"><span class="rn">ii.</span><h2>Decide</h2><span class="where">at WARRANT</span></div>
+    <div class="flow">
+      <div id="decideCore" style="display:flex;align-items:center;flex:2 1 0;min-width:0">
+        <div class="node"><b>Classify</b><p>Which data does this purpose touch?</p><span class="m">Nemotron 3 Nano · may narrow, never widen</span></div>
+        <div class="arr"></div>
+        <div class="node decide"><b>Grant table</b><p>Who owns the data, who was granted it</p><span class="m">no model · fails closed · logged</span></div>
+      </div>
+      <div class="arr" style="flex-basis:40px"></div>
+      <div class="split">
+        <div class="row" id="verify">
+          <div class="node ok"><b>Warrant</b><p>signed, single-use</p></div>
+          <div class="arr ok" style="flex-basis:118px"><span>presented to</span></div>
+          <div class="node" style="flex:1.5"><b>Data agent re-checks it</b><p>Inventory Reconciler · Roster Planner</p></div>
+        </div>
+        <div class="row" id="refusal">
+          <div class="node no"><b>Refused</b><p>with the reason</p></div>
+          <div class="arr no" style="flex-basis:118px"><span>names</span></div>
+          <div class="node" style="flex:1.5"><b>The missing grant + owner</b><p>written by Nemotron 3 Super</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="bandEscalate">
+    <div class="lab"><span class="rn">iii.</span><h2>Escalate</h2><span class="where">to People &amp; Culture</span></div>
+    <div class="flow">
+      <div class="node agent fin"><b>Agent replans</b><p>Audits what it may see; 6 claims stay blocked</p></div>
+      <div class="arr"><span>drafts</span></div>
+      <div class="node"><b>Grant request</b><p>What it needs and why, to the data's owner</p></div>
+      <div id="stewardFlow" style="display:flex;align-items:center;flex:2.5 1 0;min-width:0">
+        <div class="arr"><span>reviewed by</span></div>
+        <div class="node agent pc"><b>Steward Agent</b><p>Recommends, never grants</p><span class="m">Nemotron 3 Super</span></div>
+        <div class="arr"><span>decides</span></div>
+        <div class="node person"><b>A person approves</b><p>The grant is recorded</p></div>
+      </div>
+      <div class="arr ok"><span>re-run</span></div>
+      <div class="node ok" id="found"><b>CLM-3606</b><p>£290 allowance over a £255 band cap, found</p></div>
+    </div>
+  </section>
+
+  <footer id="diff">
+    <h3>What makes WARRANT different</h3>
+    <div><b>No model in the decision</b><p>A grant table decides. Nemotron only narrows which data a request touches.</p></div>
+    <div><b>A refusal is an answer</b><p>It names the missing grant and the owner, so the agent replans instead of failing.</p></div>
+    <div><b>Only a person grants</b><p>The Steward Agent recommends. The data's owner decides, on the record.</p></div>
+  </footer>
+</main>
+</body></html>

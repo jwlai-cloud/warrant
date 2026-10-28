@@ -8,12 +8,12 @@
 (() => {
   const CSS = `
     #__ring{position:fixed;z-index:2147483646;pointer-events:none;border-radius:10px;opacity:0;
-      box-shadow:0 0 0 4px #F2B33D,0 0 28px 6px rgba(242,179,61,.55),0 0 0 9999px rgba(8,10,14,.52);
+      box-shadow:0 0 0 4px #E2B655,0 0 28px 6px rgba(226,182,85,.5),0 0 0 9999px rgba(20,32,74,.5);
       transition:left .55s cubic-bezier(.2,.8,.2,1),top .55s cubic-bezier(.2,.8,.2,1),
         width .55s cubic-bezier(.2,.8,.2,1),height .55s cubic-bezier(.2,.8,.2,1),opacity .35s}
     #__cap{position:fixed;z-index:2147483647;pointer-events:none;opacity:0;max-width:760px;
-      background:#F2B33D;color:#14171F;font:700 21px/1.25 Archivo,"IBM Plex Sans",sans-serif;
-      letter-spacing:.2px;padding:9px 16px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);
+      background:#E2B655;color:#14204A;font:600 22px/1.25 "Work Sans",system-ui,sans-serif;
+      letter-spacing:.2px;padding:9px 16px;border-radius:6px;box-shadow:0 8px 24px rgba(20,32,74,.35);
       transition:opacity .3s,transform .3s;transform:translateY(6px)}
     #__cap.on{opacity:1;transform:none}`;
   const PAD = 10;

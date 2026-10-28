@@ -49,12 +49,9 @@
    "id": "b1",
    "go": "topology",
    "spot": [
-    {
-     "x": 50,
-     "y": 140,
-     "w": 1820,
-     "h": 765
-    }
+    "#bandPlan",
+    "#bandDecide",
+    "#bandEscalate"
    ],
    "label": "4 agents · 3 departments · 1 authorization plane",
    "text": "Four agents, three departments, and WARRANT between them."
@@ -62,38 +59,23 @@
   {
    "id": "b2",
    "spot": [
-    {
-     "x": 80,
-     "y": 215,
-     "w": 460,
-     "h": 330
-    }
+    "#bandPlan"
    ],
-   "label": "Expense Auditor · LangGraph · Nemotron 3 Super",
+   "label": "i. Plan · Expense Auditor · Nemotron 3 Super",
    "text": "The Expense Auditor plans the audit with Nemotron 3 Super, and asks for every piece of data it needs."
   },
   {
    "id": "b3",
    "spot": [
-    {
-     "x": 690,
-     "y": 225,
-     "w": 540,
-     "h": 226
-    }
+    "#decideCore"
    ],
-   "label": "Nano narrows · the grant table decides",
+   "label": "ii. Decide · Nano narrows · the grant table decides",
    "text": "WARRANT answers each request. Nemotron Nano works out which data the call touches. Then the grant table decides. No model makes that call."
   },
   {
    "id": "b4",
    "spot": [
-    {
-     "x": 1380,
-     "y": 210,
-     "w": 460,
-     "h": 412
-    }
+    "#verify"
    ],
    "label": "Data agents re-check every warrant",
    "text": "The data agents check the warrant again before handing anything over."
@@ -101,27 +83,17 @@
   {
    "id": "b5",
    "spot": [
-    {
-     "x": 1380,
-     "y": 640,
-     "w": 460,
-     "h": 244
-    }
+    "#stewardFlow"
    ],
-   "label": "Steward Agent recommends · a person decides",
+   "label": "iii. Escalate · Steward Agent recommends · a person decides",
    "text": "When access is refused, the Steward Agent reviews the request for the data's owner, and a person decides."
   },
   {
    "id": "b6",
    "spot": [
-    {
-     "x": 60,
-     "y": 935,
-     "w": 1800,
-     "h": 95
-    }
+    "#stack"
    ],
-   "label": "Nemotron 3 on Nebius Token Factory",
+   "label": "Nemotron 3 on Nebius Token Factory · MCP",
    "text": "It all runs on NVIDIA Nemotron through Nebius Token Factory, and WARRANT is an MCP server, so any agent can ask it."
   },
   {
@@ -243,13 +215,14 @@
     "#proof ul"
    ],
    "label": "Measured, not claimed",
-   "text": "We red-teamed it ourselves: forty findings fixed, ninety tests, and our own eval caught a prompt injection, which we measured and published."
+   "text": "We red-teamed it ourselves: forty findings fixed, ninety-four tests, and our own eval caught a prompt injection, which we measured and published."
   },
   {
    "id": "f1",
    "go": "card:close",
    "spot": [
-    "#close h1"
+    "#close h1",
+    "#close .links"
    ],
    "label": "Try it live",
    "text": "WARRANT. Agents that cross a department line only with a warrant, and that replan when they're told no."

@@ -1,87 +1,137 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>WARRANT video cards</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<!-- The video's title cards, drawn at 1920x1080 in the app's own visual
+     system: the landing page's ultramarine for the problem and the close, the
+     console's paper for the proof. ?card=pain|proof|close[&url=...] -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Work+Sans:wght@400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
+  :root{--blue:#2D4AA0;--blue-hi:#3B5CBA;--blue-deep:#22398A;--cream:#F4EEDD;--cream-2:#E9E1CB;--cream-dim:#D3D9EF;
+    --gold:#E2B655;--gold-hi:#F0CF7A;--gold-ink:#7A5A0E;--coral:#FF8A6E;--red:#C8432A;
+    --ink:#14204A;--ink-soft:#46507A;--paper:#F6F1E4;--surface:#FFFDF8;--rule:#DCD2BA;
+    --d-fin:#D9A441;--d-pc:#B5578A;
+    --serif:"Cormorant Garamond",Georgia,serif;--sans:"Work Sans",system-ui,sans-serif;--mono:"Space Mono",monospace}
   html,body{margin:0}
-  .card{width:1920px;height:1080px;box-sizing:border-box;padding:120px 140px;display:none;
-    background:#161A23;color:#E8EAF1;font-family:"IBM Plex Sans",sans-serif}
-  .card.on{display:flex;flex-direction:column;justify-content:center}
-  .eyebrow{font-family:Archivo,sans-serif;font-weight:700;font-size:22px;letter-spacing:5px;color:#7EA2E0;margin-bottom:28px}
-  h1{font-family:Archivo,sans-serif;font-weight:700;font-size:76px;line-height:1.05;margin:0 0 36px;letter-spacing:-1px}
-  ul{list-style:none;margin:0;padding:0;display:grid;gap:22px}
-  li{font-size:36px;padding-left:34px;border-left:5px solid #2F6B47}
-  li b{color:#fff}
-  li.warn{border-left-color:#D0A257}
-  .tag{font-size:40px;color:#A2AABC;max-width:1500px;line-height:1.35;margin:0 0 60px}
-  .links{display:grid;grid-template-columns:auto 1fr;gap:18px 40px;font-size:36px}
-  .links span:nth-child(odd){font-family:Archivo,sans-serif;font-weight:600;color:#7EA2E0;letter-spacing:2px;font-size:26px;align-self:center}
-  .links span:nth-child(even){font-family:"IBM Plex Mono",monospace}
-  .foot{margin-top:70px;font-size:24px;color:#6B7285}
-  .mark{position:absolute;top:56px;left:140px;font-family:Archivo,sans-serif;font-weight:700;font-size:24px;letter-spacing:6px;color:#fff}
-  #pain{position:relative;padding:110px 140px 90px}
-  #pain h1{font-size:64px;margin-bottom:44px}
-  .scene{display:flex;align-items:center;gap:28px;margin-bottom:46px;width:max-content}
-  .node{border:2px solid #39404F;background:#1D2431;padding:22px 28px;min-width:380px}
-  .node small{display:block;font-family:Archivo,sans-serif;font-weight:700;font-size:17px;letter-spacing:3px;color:#7EA2E0;margin-bottom:8px}
-  .node b{font-size:32px;font-weight:600}
-  .node .m{display:block;font-family:"IBM Plex Mono",monospace;font-size:20px;color:#A2AABC;margin-top:6px}
-  .node.agent{border-color:#6FC08E}
-  .node.owned{border-color:#E88686}
-  .restricted{font-family:"IBM Plex Mono",monospace;font-size:16px;color:#E88686;border:1px solid #E88686;padding:2px 8px;margin-left:10px;vertical-align:middle}
-  .arrow{font-family:"IBM Plex Mono",monospace;font-size:22px;color:#A2AABC;text-align:center}
-  .arrow i{display:block;font-style:normal;font-size:44px;color:#E8EAF1;line-height:1}
-  .opts{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-bottom:46px}
-  .opt{border:2px solid #39404F;padding:26px 30px}
-  .opt h3{font-family:Archivo,sans-serif;font-size:32px;margin:0 0 10px}
-  .opt p{font-size:26px;margin:0 0 14px;color:#C9CFDE}
-  .opt .cost{font-size:24px;font-weight:600;color:#E88686}
-  .gap{font-size:34px;color:#fff;margin:0 0 18px}
-  .fix{font-size:30px;color:#C9CFDE;border-left:6px solid #7EA2E0;padding-left:26px}
-  .fix b{color:#fff;font-family:Archivo,sans-serif;letter-spacing:2px}
+  .card{width:1920px;height:1080px;box-sizing:border-box;display:none;position:relative;overflow:hidden;
+    font:400 26px/1.4 var(--sans);font-variant-numeric:lining-nums}
+  .card.on{display:flex;flex-direction:column}
+  .sky{background:radial-gradient(circle at 78% 40%,var(--blue-hi) 0,var(--blue) 55%);color:var(--cream)}
+  .stars{position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(1.5px 1.5px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 33% 82%,#fff 50%,transparent 51%),
+    radial-gradient(2px 2px at 58% 9%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 91% 64%,#fff 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 47% 46%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 6% 92%,#fff 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 84% 12%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 72% 88%,#fff 50%,transparent 51%)}
+  .card>*:not(.stars):not(.orbit){position:relative}
+  .brand{display:flex;align-items:center;gap:14px;font:700 22px/1 var(--mono);letter-spacing:.3em}
+  .kicker{font:400 20px/1.4 var(--mono);color:var(--gold-hi)}
+
+  /* ---------- the problem ---------- */
+  #pain{padding:64px 110px 70px}
+  #pain h1{font:500 92px/.98 var(--serif);letter-spacing:-.015em;margin:56px 0 0;max-width:1500px}
+  #pain h1 em{color:var(--gold-hi)}
+  #painScene{display:flex;align-items:center;gap:0;margin:84px 0 0;width:max-content}
+  .party{display:flex;align-items:center;gap:22px}
+  .party .dot{width:34px;height:34px;border-radius:50%;flex:none}
+  .party b{display:block;font:600 40px/1 var(--serif)}
+  .party span{font:400 19px/1.4 var(--mono);color:var(--cream-dim)}
+  .party.fin .dot{background:var(--gold)}
+  .party.pc .dot{background:var(--blue);border:2.5px solid var(--coral);box-shadow:0 0 0 9px rgba(255,138,110,.18)}
+  .restricted{font:700 15px/1 var(--mono);color:var(--coral);border:1.5px solid var(--coral);padding:4px 8px;border-radius:3px;margin-left:10px;vertical-align:4px}
+  .needs{width:400px;margin:0 30px;text-align:center;font:400 18px/1.35 var(--mono);color:var(--cream-dim)}
+  .needs::after{content:"";display:block;height:0;border-top:2px dashed var(--cream);margin:12px 0 0;opacity:.7}
+  .needs{position:relative}.needs::before{content:"";position:absolute;right:-2px;bottom:-6px;border:7px solid transparent;border-left:11px solid var(--cream);border-right:0;opacity:.8}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:80px;max-width:1700px}
+  .opt{border:1.5px solid rgba(244,238,221,.45);border-radius:6px;padding:24px 30px;display:grid;grid-template-columns:62px 1fr}
+  .opt .rn{font:italic 500 50px/1 var(--serif);color:var(--gold-hi)}
+  .opt h3{margin:0 0 6px;font:600 38px/1.05 var(--serif)}
+  .opt p{margin:0 0 10px;color:var(--cream-2);font-size:24px}
+  .opt .cost{font:700 19px/1.3 var(--mono);color:var(--coral)}
+  .verdict{margin-top:auto;display:flex;align-items:baseline;gap:56px;border-top:1px solid rgba(244,238,221,.4);padding-top:26px}
+  #painGap{margin:0;font:italic 500 40px/1.15 var(--serif);color:var(--cream);flex:0 0 640px}
+  #painFix{font-size:26px;color:var(--cream-2)}
+  #painFix b{font:700 22px/1 var(--mono);letter-spacing:.25em;color:var(--gold-hi);margin-right:10px}
+
+  /* ---------- the proof ---------- */
+  #proof{background:var(--paper);color:var(--ink);padding:84px 120px;justify-content:center}
+  #proof .kicker{color:var(--gold-ink)}
+  #proof h1{font:500 96px/1 var(--serif);margin:14px 0 52px;letter-spacing:-.015em}
+  #proof h1 em{color:var(--blue)}
+  #proof ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:0 64px;max-width:1680px}
+  #proof li{display:grid;grid-template-columns:150px 1fr;align-items:baseline;gap:22px;padding:24px 0;border-top:1px solid var(--rule)}
+  #proof li .n{font:700 64px/1 var(--mono);color:var(--blue);letter-spacing:-.04em}
+  #proof li .n small{font-size:.5em}
+  #proof li b{display:block;font:600 34px/1.1 var(--serif)}
+  #proof li span{font-size:22px;color:var(--ink-soft)}
+  #proof li.warn .n{color:var(--red)}
+
+  /* ---------- the close ---------- */
+  #close{padding:64px 110px 70px;justify-content:space-between}
+  #close h1{font:500 104px/.98 var(--serif);letter-spacing:-.02em;margin:0;max-width:1450px}
+  #close h1 em{color:var(--gold-hi)}
+  .orbit{position:absolute;right:-70px;top:120px;width:860px;height:860px;opacity:.9}
+  .links{display:grid;grid-template-columns:auto 1fr;gap:20px 40px;align-items:baseline}
+  .links span:nth-child(odd){font:400 18px/1 var(--mono);color:var(--gold-hi);letter-spacing:.12em}
+  .links span:nth-child(even){font:400 36px/1 var(--mono);color:var(--cream)}
+  .foot{font:400 18px/1 var(--mono);color:var(--cream-dim)}
 </style></head><body>
 
-<section class="card" id="pain">
-  <div class="mark">WARRANT</div>
-  <div class="eyebrow">THE PROBLEM</div>
-  <h1 id="painHead">AI agents now do work that crosses departments.</h1>
-  <div class="scene" id="painScene">
-    <div class="node agent"><small>FINANCE</small><b>Expense Auditor agent</b><span class="m">audits 47 Q3 claims</span></div>
-    <div class="arrow"><i>&rarr;</i>needs salaries to catch<br>an overpaid allowance</div>
-    <div class="node owned"><small>PEOPLE &amp; CULTURE</small><b>Employee salaries</b><span class="restricted">RESTRICTED</span><span class="m">owned by another department</span></div>
+<svg width="0" height="0" style="position:absolute"><symbol id="mark" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="#F4EEDD" stroke-width="1.5"/><ellipse cx="15" cy="15" rx="13" ry="5" fill="none" stroke="#E2B655" stroke-width="1.5" transform="rotate(-25 15 15)"/><circle cx="15" cy="15" r="4" fill="#F4EEDD"/></symbol></svg>
+
+<section class="card sky" id="pain">
+  <div class="stars"></div>
+  <div class="brand"><svg width="38" height="38"><use href="#mark"/></svg>WARRANT</div>
+  <h1 id="painHead">AI agents now do work that <em>crosses departments.</em></h1>
+  <div id="painScene">
+    <div class="party fin"><span class="dot"></span><div><b>Finance</b><span>Expense Auditor agent · 47 Q3 claims</span></div></div>
+    <div class="needs">needs salaries to catch<br>an overpaid allowance</div>
+    <div class="party pc"><span class="dot"></span><div><b>People &amp; Culture<span class="restricted">RESTRICTED</span></b><span>Employee salaries · another department's data</span></div></div>
   </div>
   <div class="opts">
-    <div class="opt" id="opt1"><h3>Today, option 1: over-grant it</h3><p>A shared service account that can read every salary in the company.</p><div class="cost">Far too much access. No reason on record.</div></div>
-    <div class="opt" id="opt2"><h3>Today, option 2: block it</h3><p>The agent can't check allowances against the salary band.</p><div class="cost">The overpayment goes through.</div></div>
+    <div class="opt" id="opt1"><span class="rn">i.</span><div><h3>Over-grant it</h3><p>A shared service account that reads every salary in the company.</p><div class="cost">far too much access · no reason on record</div></div></div>
+    <div class="opt" id="opt2"><span class="rn">ii.</span><div><h3>Block it</h3><p>The agent can't check allowances against the salary band.</p><div class="cost">the overpayment goes through</div></div></div>
   </div>
-  <p class="gap" id="painGap">Neither one asks the data's owner. Neither can say why.</p>
-  <div class="fix" id="painFix"><b>WARRANT</b> &nbsp;decides every cross-department request from who owns the data, gives the reason, and lets the agent ask the owner.</div>
+  <div class="verdict">
+    <p id="painGap">Neither asks the data's owner. Neither can say why.</p>
+    <div id="painFix"><b>WARRANT</b>decides every cross-department request from who owns the data, says why, and lets the agent ask the owner.</div>
+  </div>
 </section>
 
 <section class="card" id="proof">
-  <div class="eyebrow">WHY YOU CAN TRUST IT</div>
-  <h1>Red-teamed by its builders</h1>
+  <div class="kicker">Why you can trust it</div>
+  <h1>Measured, <em>not claimed.</em></h1>
   <ul>
-    <li><b>Deterministic authorization</b> — no model in the decision</li>
-    <li><b>NVIDIA Nemotron 3</b> Nano 30B + Super 120B on <b>Nebius Token Factory</b></li>
-    <li><b>Adversarial review:</b> 40 confirmed findings, all fixed</li>
-    <li><b>90 tests</b> · classifier eval reports recall first</li>
-    <li class="warn"><b>A prompt injection, found by our own eval</b> — measured, instrumented, documented</li>
+    <li><span class="n">0</span><div><b>models in the decision</b><span>A grant table decides: deterministic, reproducible, fails closed.</span></div></li>
+    <li><span class="n">2</span><div><b>Nemotron 3 tiers</b><span>Nano 30B and Super 120B, on Nebius Token Factory.</span></div></li>
+    <li><span class="n">40</span><div><b>review findings, all fixed</b><span>An adversarial review of our own code.</span></div></li>
+    <li><span class="n">94</span><div><b>tests</b><span>The classifier eval reports recall first.</span></div></li>
+    <li class="warn" style="grid-column:1/-1"><span class="n">1</span><div><b>prompt injection, found by our own eval</b><span>Measured, instrumented and published, not hidden.</span></div></li>
   </ul>
 </section>
 
-<section class="card" id="close">
-  <div class="eyebrow">WARRANT</div>
-  <h1>Agents that can't cross a department line without a warrant — and replan when they're refused.</h1>
-  <div class="links">
-    <span>LIVE DEMO</span><span id="demoUrl">huggingface.co/spaces/…/warrant</span>
-    <span>CODE</span><span>github.com/jwlai-cloud/warrant</span>
+<section class="card sky" id="close">
+  <div class="stars"></div>
+  <svg class="orbit" viewBox="0 0 860 860" aria-hidden="true">
+    <g fill="none" stroke="#F4EEDD"><circle cx="430" cy="430" r="150" stroke-opacity=".4"/><circle cx="430" cy="430" r="270" stroke-opacity=".3"/><circle cx="430" cy="430" r="390" stroke-opacity=".22" stroke-dasharray="3 9"/></g>
+    <circle cx="430" cy="430" r="74" fill="#F4EEDD"/><circle cx="430" cy="430" r="92" fill="none" stroke="#E2B655" stroke-width="1.5"/>
+    <circle cx="212" cy="590" r="20" fill="#E2B655"/>
+    <path d="M232 580 C 300 540, 340 500, 368 478" stroke="#F4EEDD" stroke-width="2" fill="none"/>
+    <path d="M490 380 C 520 330, 545 280, 560 240" stroke="#F0CF7A" stroke-width="3" fill="none"/>
+    <circle cx="566" cy="222" r="14" fill="none" stroke="#F4EEDD" stroke-width="2"/><circle cx="566" cy="222" r="5" fill="#F4EEDD"/>
+    <circle cx="690" cy="560" r="20" fill="#2D4AA0" stroke="#FF8A6E" stroke-width="2.5"/><circle cx="690" cy="560" r="6" fill="#F4EEDD"/>
+  </svg>
+  <div class="brand"><svg width="38" height="38"><use href="#mark"/></svg>WARRANT</div>
+  <h1>Agents cross a department line only with a <em>warrant,</em> and replan when they're told no.</h1>
+  <div>
+    <div class="links">
+      <span>TRY IT LIVE</span><span id="demoUrl">huggingface.co/spaces/…/warrant</span>
+      <span>CODE</span><span>github.com/jwlai-cloud/warrant</span>
+    </div>
+    <p class="foot" style="margin:44px 0 0">Nebius × NVIDIA Global AI Hackathon 2026 · Best Apps and Agents</p>
   </div>
-  <div class="foot">Nebius × NVIDIA Global AI Hackathon 2026 · Best Apps and Agents</div>
 </section>
 
 <script>
   const q = new URLSearchParams(location.search);
   document.getElementById(q.get("card") || "proof").classList.add("on");
-  if (q.get("url")) document.getElementById("demoUrl").textContent = q.get("url");
+  if (q.get("url")) document.getElementById("demoUrl").textContent = q.get("url").replace(/^https?:\/\//, "");
 </script>
 </body></html>

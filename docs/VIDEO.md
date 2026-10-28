@@ -1,7 +1,7 @@
 # Demo video — story, beats and pipeline
 
 **Hard limit: under 3:00** (Devpost rule: "less than three (3) minutes").
-Current cut: **2:55**.
+Current cut: **2:58**, filmed in the redesigned console (B + E direction).
 
 ## Story order
 
@@ -12,10 +12,10 @@ fast, and make every claim visible on screen, not only spoken.
 | Part | Time | On screen | What it establishes |
 |---|---|---|---|
 | A · The problem | 0:00–0:32 | Problem card | Agents' work crosses departments. Today: over-grant (a service account that reads every salary) or block (the overpayment goes through). Nobody asks the owner; nobody can say why. |
-| B · The system | 0:32–1:11 | Topology | Four agents, three departments, WARRANT between them: who plans, who decides (no model), who re-checks, who reviews, who approves. Stack: Nemotron on Token Factory, MCP. |
+| B · The system | 0:30–1:10 | Fig. 2 architecture (`docs/architecture.html`), ringed band by band | Four agents, three departments, WARRANT between them: who plans, who decides (no model), who re-checks, who reviews, who approves. Stack: Nemotron on Token Factory, MCP. |
 | C · The rights | 1:11–1:22 | Grant Matrix | Rights are explicit per capability × data entity; salaries are restricted, no grant means no. |
 | D · Live demo | 1:22–2:37 | Console, two live runs | Plan → granted → refused with reason → three findings → grant request → Steward Agent review → human approval → re-run finds the hidden £290 overpayment. |
-| E · Proof | 2:37–2:46 | Proof card | 40 review findings fixed, 90 tests, a prompt injection found by our own eval and published. |
+| E · Proof | 2:37–2:46 | Proof card | 40 review findings fixed, 94 tests, a prompt injection found by our own eval and published. |
 | F · Close | 2:46–2:55 | Close card | One-line claim, live demo and code links. |
 
 Every line of narration is a **beat** in `demo/narration.json`: the line, where
@@ -57,5 +57,5 @@ figures. Before submitting, grep for each.
 | Before approval | 38 verified · 3 flagged · 6 blocked · £2,561.00 under query |
 | After approval | 43 verified · 4 flagged · 0 blocked · £2,851.00 under query |
 | The hidden one | CLM-3606, £290 allowance vs £255 band cap |
-| Tests | 90 |
+| Tests | 94 |
 | Review | 40 confirmed findings, all fixed |
