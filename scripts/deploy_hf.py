@@ -1,9 +1,11 @@
 """Deploy WARRANT to a Hugging Face Docker Space.
 
-    .venv/bin/hf auth login            # once, with a WRITE token
-    .venv/bin/python scripts/deploy_hf.py [--space jwlai-cloud/warrant]
+    # put HF_TOKEN=<a WRITE token for your PERSONAL account> in .env, then
+    .venv/bin/python scripts/deploy_hf.py --account <your-hf-username>
 
-Creates the Space if needed, stores the Token Factory credentials as Space
+Uses only HF_TOKEN from .env, never the machine's saved `hf auth login`
+(that one may be a work/org account), and refuses to deploy unless the token
+belongs to --account. Creates the Space if needed, stores the Token Factory credentials as Space
 SECRETS (read from .env, never printed, never committed), and uploads only what
 the image needs. Re-running redeploys.
 """
@@ -33,14 +35,18 @@ def _env() -> dict[str, str]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--space", default=None, help="owner/name; defaults to <you>/warrant")
+    ap.add_argument("--account", required=True, help="the HF username the token must belong to")
     args = ap.parse_args()
 
-    api = HfApi()
-    me = api.whoami()["name"]
-    space = args.space or f"{me}/warrant"
-
     env = _env()
+    if not env.get("HF_TOKEN"):
+        raise SystemExit(".env has no HF_TOKEN (a write token for your personal account)")
+    api = HfApi(token=env["HF_TOKEN"])
+    me = api.whoami()["name"]
+    if me != args.account:
+        raise SystemExit(f"HF_TOKEN belongs to {me!r}, not {args.account!r}; nothing deployed")
+    space = f"{me}/warrant"
+
     missing = [k for k in SECRETS if not env.get(k)]
     if missing:
         raise SystemExit(f".env is missing {', '.join(missing)}")
