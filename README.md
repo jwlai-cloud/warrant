@@ -333,6 +333,10 @@ Named so a judge doesn't have to find it:
 - **The self-hosted path has never run on a GPU.** The vLLM tier is built and
   tested against the same client, but Nebius refused every resource create on
   our tenant from 18 Sep, so everything live runs on Token Factory.
+- **A warrant is a record, not a signed token.** The data agent checks it with
+  the plane (granted, issued to this caller for this callee, not expired, covers
+  every entity it serves), so it can't be forged offline, but it can be reused
+  until it expires. Signed, single-use warrants are the next step.
 - **The thinking budget is a no-op on Token Factory.** It binds on vLLM only;
   on the managed tiers `max_tokens` is the real bound.
 

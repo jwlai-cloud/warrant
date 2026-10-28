@@ -51,7 +51,8 @@ every one the agent asks WARRANT.
 - **Decide.** For each request, Nemotron 3 Nano works out which data it touches
   (it can only narrow, never widen). Then a **grant table** decides — who owns
   the data, who was granted it — **with no model in the decision**. A grant
-  comes back as a signed, single-use warrant that the data agent re-checks; a
+  comes back as a time-limited warrant, bound to one caller, one callee and the
+  named data, that the data agent re-checks with the plane before serving; a
   refusal comes back with its reason, naming the missing grant and the owner.
 - **Replan.** The agent audits everything it may see — 38 verified, 3 flagged,
   £2,561.00 under query — and the 6 claims it can't check stay blocked. Instead
@@ -139,6 +140,7 @@ visit takes a few seconds longer.
   scoping to implementers).
 - Ingest the architecture model from an EA tool instead of hand-authored YAML.
 - Row-level, purpose-limited and time-boxed grants.
+- Signed, single-use warrants a data agent can verify without calling the plane.
 - Per-run cost receipts by model size.
 
 ---

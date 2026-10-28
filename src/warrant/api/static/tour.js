@@ -11,7 +11,7 @@
     { view: "runs", at: "#timeline li[data-kind='plan']", title: "The agent's own plan",
       text: "Nemotron 3 Super, on Nebius Token Factory, wrote this plan: which department to ask, and for what. Next, the agent asks WARRANT for each step." },
     { view: "runs", at: "#timeline li[data-kind='granted']", title: "Granted: a warrant",
-      text: "Finance holds a grant to this data, so WARRANT issued a signed, single-use warrant. Nemotron only worked out which data the request touches. The grant table made the decision, with no model involved." },
+      text: "Finance holds a grant to this data, so WARRANT issued a warrant: time-limited, for this agent and this data only. Nemotron only worked out which data the request touches. The grant table made the decision, with no model involved." },
     { view: "runs", at: "#timeline li[data-kind='refused']", title: "Refused, with the reason",
       text: "Salaries belong to People & Culture and are restricted, and Finance holds no grant to them. So the answer is no, and it names the missing grant and who owns the data." },
     { view: "runs", at: ".expo-run", title: "It still did its job",
