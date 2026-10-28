@@ -1,8 +1,9 @@
 """The public deployment must not spend Token Factory credit for strangers.
 
-With WARRANT_JUDGE_KEY set the whole site is judges-only: every page and API
-call needs the key (header, ?key= once, then a cookie); a browser without it
-gets the access page. /healthz stays open. Unset, nothing changes.
+With WARRANT_JUDGE_KEY set, everything that can reach a model - every POST
+under /v1/ and the live stream - needs the key (header, ?key= once, then a
+cookie); reads stay open and the console falls back to the recorded replay.
+Unset, nothing changes.
 """
 from __future__ import annotations
 
@@ -37,7 +38,7 @@ def test_no_key_configured_means_open(app_mod, monkeypatch):
     assert c.get("/v1/access").json()["live"] is True
 
 
-def test_key_configured_locks_everything(app_mod, monkeypatch):
+def test_key_configured_blocks_spending_routes(app_mod, monkeypatch):
     monkeypatch.setenv("WARRANT_JUDGE_KEY", KEY)
     c = TestClient(app_mod.app)
     for r in (c.post("/v1/warrant", json=WARRANT),
@@ -45,25 +46,28 @@ def test_key_configured_locks_everything(app_mod, monkeypatch):
               c.post("/v1/demo/run"),
               c.post("/v1/demo/reset"),
               c.get("/v1/demo/stream"),
-              c.get("/v1/model"),
-              c.get("/v1/access"),
-              c.get("/static/replay.json"),
               c.post("/v1/warrant", json=WARRANT, headers={"X-Warrant-Key": "wrong"})):
         assert r.status_code == 401, r.text
-    page = c.get("/", headers={"accept": "text/html"})
-    assert page.status_code == 401 and "Judge access" in page.text
-    assert c.get("/healthz").status_code == 200
+        assert r.json()["replay"] == "/static/replay.json"
+    assert c.get("/v1/access").json() == {"live": False, "key_required": True,
+                                          "runs_left_today": 40,
+                                          "replay": "/static/replay.json"}
+    # a stranger still gets the whole console, in replay
+    assert c.get("/v1/model").status_code == 200
+    assert c.get("/").status_code == 200
+    assert c.get("/static/replay.json").status_code == 200
 
 
 def test_first_visit_sets_a_cookie(app_mod, monkeypatch):
     monkeypatch.setenv("WARRANT_JUDGE_KEY", KEY)
     c = TestClient(app_mod.app)
-    assert c.get(f"/?key={KEY}", headers={"accept": "text/html"}).status_code == 200
-    assert c.get("/v1/model").status_code == 200          # cookie, no key
-    assert c.get("/v1/access").json()["live"] is True
+    assert c.get(f"/?key={KEY}").status_code == 200
+    assert c.get("/v1/access").json()["live"] is True      # cookie, no key
+    assert c.post("/v1/demo/reset").status_code != 401
     bad = TestClient(app_mod.app)
-    assert bad.get("/?key=wrong", headers={"accept": "text/html"}).status_code == 401
+    bad.get("/?key=wrong")
     assert "warrant_key" not in bad.cookies
+    assert bad.get("/v1/access").json()["live"] is False
 
 
 def test_key_by_header_or_query(app_mod, monkeypatch):

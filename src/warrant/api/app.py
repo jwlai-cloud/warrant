@@ -52,18 +52,17 @@ if _STATIC.exists():
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 
-# Judges only. On the hosted deployment WARRANT_JUDGE_KEY is set and the whole
-# site sits behind it: the link and the code go only in the Devpost testing
-# instructions (the rules allow a private site with credentials). Opening any
-# page with ?key=<code> once sets a cookie, so the console, the API and the
-# live stream all just work after that. Without it a visitor gets the access
-# page and nothing else; /healthz stays open for the host's health check.
-# If the day's live-run cap is used up, the console falls back to the recorded
-# live run in static/replay.json, played in the judge's own browser. Unset
-# (local dev, the video capture) means open, exactly as before.
+# Judge-only live runs. On the hosted deployment WARRANT_JUDGE_KEY is set, and
+# everything that can spend Token Factory credit - every POST under /v1/ (a
+# warrant request classifies with Nemotron, a grant request gets a Steward
+# Agent review) and the live stream - needs that key. Everyone else gets the
+# recorded live run in static/replay.json, played back in their own browser,
+# which spends nothing and touches no shared state. A judge's link carries
+# ?key=<code>; the first visit sets a cookie, so the console, the API and the
+# live stream just work after that. Unset (local dev, the video capture) means
+# open, exactly as before.
 _REPLAY = "/static/replay.json"
 _COOKIE = "warrant_key"
-_OPEN = {"/healthz"}
 _live_runs: dict[str, int] = {}
 
 
@@ -85,14 +84,14 @@ def _supplied_key(request: Request) -> str | None:
 
 @app.middleware("http")
 async def judge_gate(request: Request, call_next):
-    if not _judge_key() or request.url.path in _OPEN:
-        return await call_next(request)
-    if not _is_judge(_supplied_key(request)):
-        if "text/html" in request.headers.get("accept", ""):
-            return FileResponse(_STATIC / "gate.html", status_code=401)
-        return JSONResponse(status_code=401, content={"error": "judge access code required"})
+    p = request.url.path
+    spends = (request.method == "POST" and p.startswith("/v1/")) or p == "/v1/demo/stream"
+    judge = _is_judge(_supplied_key(request))
+    if spends and not judge:
+        return JSONResponse(status_code=401, content={
+            "error": "judge access code required", "replay": _REPLAY})
     response = await call_next(request)
-    if request.query_params.get("key"):
+    if _judge_key() and judge and request.query_params.get("key"):
         # Behind HTTPS (the Space) the cookie is SameSite=None so it also works
         # inside huggingface.co's iframe; plain http (local) cannot use None.
         https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
