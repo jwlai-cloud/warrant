@@ -617,6 +617,7 @@
     <section class="view" id="v-runs">
       <div class="view-head"><h1>Runs<button class="help" type="button" aria-label="What is this?" data-tip="A warrant is a signed, single-use permission for one agent to read named data from another department. WARRANT issues one only when a grant covers the request. No warrant, no data.">?</button></h1>
         <p>Nemotron plans the audit and writes every request. WARRANT decides each one from the architecture model, with no model in that decision. A refusal comes back as reasons the agent replans around, not an error.</p></div>
+      <div class="banner" id="capBanner" hidden style="margin-bottom:16px"></div>
       <div class="panel">
         <div class="panel-head"><h2>expense-auditor &middot; Q3 audit</h2>
           <span class="chip" id="runState">idle</span>
@@ -1246,6 +1247,8 @@
       if (e.kind === "done") {
         es.close(); renderOutcome(e.result);
         await loadAudit(); await loadRequests(); finishRun();
+        var a = await api("/v1/access");
+        if (a.ok && a.body.runs_left_today != null) setMode(true, "", a.body.runs_left_today);
       } else if (e.kind === "error") {
         es.close(); addEvent(e); $("runState").textContent = "failed"; finishRun();
       } else {
@@ -1253,13 +1256,30 @@
         if (e.kind === "granted" || e.kind === "refused") loadAudit();
       }
     };
-    es.onerror = function () {
+    es.onerror = async function () {
       if (!RUNNING) return;
       es.close();
+      // EventSource hides the status, so ask: was it today's live-run cap?
+      var a = await api("/v1/access");
+      if (a.ok && a.body.runs_left_today === 0) {
+        finishRun(); await capReached(); RUNNING = false; run(); return;
+      }
       var b = $("apBanner"); b.hidden = false; b.className = "banner bad";
       b.textContent = "The live stream dropped. If a run is already in progress, wait for it and press Run again.";
       $("runState").textContent = "stream interrupted"; finishRun();
     };
+  }
+
+  // The daily cap on live runs (a backstop on Token Factory spend) is used up:
+  // say so plainly, then carry on with the recorded live run of the same audit.
+  async function capReached() {
+    REPLAY = await (await fetch("/static/replay.json")).json();
+    PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
+    setMode(false, "Today's live runs are used up");
+    var b = $("capBanner"); b.hidden = false;
+    b.textContent = "Today's live Nemotron runs are used up (a daily cap that protects the Token Factory budget; it resets at midnight UTC). " +
+      "You're now watching a recorded live run of the same audit, made on " + REPLAY.recorded_at +
+      ": every plan, warrant, refusal and finding in it came from Nemotron. Thanks for judging, and please try live again tomorrow.";
   }
   // The recorded run, at its real pace except that a model wait longer than
   // 1.5s is cut to 1.5s (the trace still shows the real timestamps). After a
@@ -1301,10 +1321,11 @@
   }
 
   /* ---- boot ---- */
-  function setMode(live, why) {
+  function setMode(live, why, left) {
     MODE = live ? "live" : "replay";
     var p = $("modePill");
-    p.textContent = live ? "live · Nemotron" : "replay · recorded " + REPLAY.recorded_at;
+    p.textContent = live ? "live · Nemotron" + (left != null ? " · " + left + (left === 1 ? " run" : " runs") + " left today" : "")
+      : "replay · recorded " + REPLAY.recorded_at;
     p.classList.toggle("live", live);
     p.title = live ? "Runs call Nemotron on Nebius Token Factory for real." + (why ? " " + why + "." : "")
       : (why || "A recorded live run, played back in your browser. Judges: click to enter your access code and run it live.");
@@ -1317,9 +1338,12 @@
     if (!k) return;
     KEY = k.trim();
     var a = await api("/v1/access");
-    if (a.ok && a.body.live) {
+    if (a.ok && a.body.live && a.body.runs_left_today === 0) {
       try { localStorage.setItem("warrantKey", KEY); } catch (e) {}
-      setMode(true); await loadModel(); await loadAudit(); await loadRequests();
+      await capReached(); show("runs");
+    } else if (a.ok && a.body.live) {
+      try { localStorage.setItem("warrantKey", KEY); } catch (e) {}
+      setMode(true, "", a.body.runs_left_today); await loadModel(); await loadAudit(); await loadRequests();
     } else { KEY = ""; window.alert("That code was not accepted. Replay mode stays on."); }
   });
 
@@ -1335,9 +1359,11 @@
       REPLAY = await rr.json();
       M = JSON.parse(JSON.stringify(REPLAY.model));
       setMode(false);
+    } else if (a.ok && a.body.runs_left_today === 0) {
+      await capReached();
     } else {
       REPLAY = { recorded_at: "" };
-      setMode(true, a.ok && a.body.runs_left_today != null ? a.body.runs_left_today + " live runs left today" : "");
+      setMode(true, "", a.ok ? a.body.runs_left_today : null);
     }
     await loadHealth();
     await loadModel();
