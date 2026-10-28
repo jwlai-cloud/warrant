@@ -35,8 +35,9 @@ announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 **Live demo:** for the hackathon judges only. The link and access code are in
 the Devpost submission's testing instructions, because every run spends real
-Token Factory credit. It is hosted on a free Hugging Face Space, so if it has
-been idle the first visit takes about a minute to wake up. Anyone can run it
+Token Factory credit. It runs on Google Cloud Run scaled to zero (it costs
+nothing while idle), so if it has been idle the first visit takes a few seconds
+longer to wake up. Anyone can run it
 locally (below), or watch the demo video on the Devpost page.
 
 Northwind Group's Expense Auditor (Finance) audits 47 Q3 claims worth

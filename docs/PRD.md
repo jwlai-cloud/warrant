@@ -89,7 +89,7 @@ part of this product that closes the loop rather than reporting a problem.
 | P0-7 | Three agents that actually run and call each other across org boundaries. | **done** |
 | P0-8 | No path to another org's data bypasses `governed_call`. Asserted by test. | **done** |
 | P0-9 | Refused agent replans: degrade, escalate, record. | **done** |
-| P0-10 | Hosted demo URL a judge can open. *Submission requirement.* | moving to Hugging Face Spaces: Nebius has denied every resource create since 18 Sep. Inference stays on Token Factory, so eligibility is unaffected |
+| P0-10 | Hosted demo URL a judge can open. *Submission requirement.* | Cloud Run (personal GCP, scale to zero, judges-only behind an access code; link and code only in the Devpost testing fields). Nebius denied every resource create since 18 Sep and HF now needs PRO for Docker Spaces. Inference stays on Token Factory, so eligibility is unaffected |
 | P0-11 | Demo video under 3 minutes. *Submission requirement.* | **not started** |
 | P0-12 | Public repo, open-source licence, README with setup. | **done** 26 Oct &mdash; github.com/jwlai-cloud/warrant (was marked done earlier while the repo had no remote) |
 
