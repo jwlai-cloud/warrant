@@ -18,7 +18,7 @@
     "#painScene"
    ],
    "label": "Finance's agent needs People & Culture's data",
-   "text": "This Finance agent audits expenses. To catch an overpaid allowance, it must check salaries, and salaries belong to People and Culture."
+   "text": "To catch an overpaid allowance, this Finance agent must check salaries, which belong to People and Culture."
   },
   {
    "id": "a3",
@@ -43,7 +43,7 @@
     "#painFix"
    ],
    "label": "Ask the owner. Keep the reason.",
-   "text": "Nobody asked the data's owner, and nobody can say why. WARRANT is the guardrail between departments."
+   "text": "Nobody asks the data's owner, and nobody can say why. WARRANT is the guardrail between departments."
   },
   {
    "id": "b1",
@@ -62,7 +62,7 @@
     "#bandPlan"
    ],
    "label": "i. Plan · Expense Auditor · Nemotron 3 Super",
-   "text": "The Expense Auditor plans the audit with Nemotron 3 Super, and asks for every piece of data it needs."
+   "text": "The Expense Auditor plans with Nemotron 3 Super, and asks for the data it needs."
   },
   {
    "id": "b3",
@@ -138,7 +138,7 @@
     "#timeline li[data-kind='plan']"
    ],
    "label": "Nemotron's own plan",
-   "text": "Nemotron planned the audit itself, splitting its requests so it never mixes data it may see with data it may not."
+   "text": "Nemotron planned the audit itself: which agent to ask, and for what."
   },
   {
    "id": "d4",
@@ -162,7 +162,7 @@
     "#findings"
    ],
    "label": "3 problems found · £2,561 under query",
-   "text": "The agent doesn't stop. With what it may see, it finds three problems: a duplicate invoice, a supplier over contract, and a trip the roster doesn't show."
+   "text": "With what it may see, it still finds three problems: a duplicate invoice, a supplier over contract, and a trip the roster doesn't show."
   },
   {
    "id": "d7",

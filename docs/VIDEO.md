@@ -1,7 +1,7 @@
 # Demo video — story, beats and pipeline
 
 **Hard limit: under 3:00** (Devpost rule: "less than three (3) minutes").
-Current cut: **2:58**, filmed in the redesigned console (B + E direction).
+Current cut: **2:50**, filmed in the redesigned console (B + E direction).
 
 ## Story order
 
