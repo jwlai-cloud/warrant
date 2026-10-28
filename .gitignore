@@ -12,3 +12,4 @@ audit/*.jsonl
 .pytest_cache/
 audit/grant_requests.jsonl
 demo-video/
+audit/
