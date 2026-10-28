@@ -162,7 +162,7 @@
     "#findings"
    ],
    "label": "3 problems found · £2,561 under query",
-   "text": "The agent doesn't stop. With what it may see, it finds three problems: a duplicate invoice, a supplier billing over contract, and a flight on a day the employee never travelled."
+   "text": "The agent doesn't stop. With what it may see, it finds three problems: a duplicate invoice, a supplier over contract, and a trip the roster doesn't show."
   },
   {
    "id": "d7",

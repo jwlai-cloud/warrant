@@ -691,6 +691,9 @@
   var MODE = "live", KEY = "", REPLAY = null, PHASE = 0, RUNS_DONE = 0;
   try { KEY = new URLSearchParams(location.search).get("key") || localStorage.getItem("warrantKey") || ""; } catch (e) {}
 
+  // Model text sometimes carries markdown emphasis; shown as plain text, so
+  // drop the markers rather than render model-written HTML.
+  function plain(x) { return String(x == null ? "" : x).replace(/\*\*|__/g, ""); }
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c;
     if (x !== undefined) e.textContent = x; return e; }
   async function api(path, opts) {
@@ -943,7 +946,7 @@
       if (r.reason) {
         var rw = el("div");
         rw.appendChild(el("label", "rl", "Request · from " + r.requested_by));
-        rw.appendChild(el("div", "justify", r.reason));
+        rw.appendChild(el("div", "justify", plain(r.reason)));
         body.appendChild(rw);
       }
       if (r.review) body.appendChild(reviewBox(r.review));
@@ -1037,10 +1040,10 @@
     head.appendChild(el("span", "tag " + (rec === "decline" ? "bad" : rec === "approve" ? "ok" : "warn"),
       rec.replace(/_/g, " ")));
     box.appendChild(head);
-    box.appendChild(el("p", null, rv.reasoning || ""));
+    box.appendChild(el("p", null, plain(rv.reasoning)));
     if (rv.conditions && rv.conditions.length) {
       var ul = el("ul");
-      rv.conditions.forEach(function (c) { ul.appendChild(el("li", null, c)); });
+      rv.conditions.forEach(function (c) { ul.appendChild(el("li", null, plain(c))); });
       box.appendChild(ul);
     }
     box.appendChild(el("div", "fine", "A recommendation to the human steward. It cannot grant anything; only the decision below writes a grant."));
@@ -1173,7 +1176,7 @@
       var sub3 = el("div", "tl-sub"); sub3.appendChild(el("span", "who-model",
         (d.by_model ? "drafted by Nemotron" : "template text, no model") + " → " + stewardOf(d.data_entity).name));
       body.appendChild(sub3);
-      body.appendChild(el("div", "tl-quote", "“" + d.reason + "”"));
+      body.appendChild(el("div", "tl-quote", "“" + plain(d.reason) + "”"));
     }
     li.appendChild(body);
     if (dec) {
