@@ -10,7 +10,8 @@ GET  /v1/access    - live (judge) or replay; with WARRANT_JUDGE_KEY set, every
                      POST and the live stream need the key
 GET  /v1/audit     - the decision log
 GET  /v1/model     - the architecture model as a graph (for the UI)
-GET  /healthz      - liveness + which tier is currently serving
+GET  /v1/health    - liveness + which tier is currently serving (/healthz too;
+                     Cloud Run reserves that path, so the console uses /v1/health)
 GET  /            - the console
 """
 from __future__ import annotations
@@ -519,6 +520,7 @@ async def get_model():
     }
 
 
+@app.get("/v1/health")
 @app.get("/healthz")
 async def healthz():
     assert _svc is not None

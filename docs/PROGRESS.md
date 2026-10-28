@@ -1,5 +1,43 @@
 # Progress log
 
+## 2026-10-28 — submission polish (redesign, hosting, Ultra, judging pass)
+
+### What changed
+- **Redesign.** The console was rejected as "generic AI-generated". Five
+  huashu-design directions, then "B and E but background not so dark": an
+  ultramarine landing page with an orbital Fig. 1, a light paper console,
+  Cormorant Garamond / Work Sans / Space Mono. Choice recorded in
+  `design/direction-approved.md`.
+- **Onboarding.** Landing page, a "Step N of 4" bar, a "?" on every page and a
+  10-step guided tour where the visitor does the clicks (run, approve, re-run).
+  The judges asked for exactly this in the "Will It Ship?" session.
+- **Spend control.** Strangers get the full console playing a real recorded live
+  run in their own browser (no model calls). Live runs need the judges' code
+  (a `?key=` link sets a cookie) and are capped per day; at the cap the console
+  says so in a callout and plays the recording instead. A whole-site lock was
+  built and reverted the same day so strangers can still try it.
+- **Hosting: Google Cloud Run**, personal project, scale to zero, max one
+  instance (`scripts/deploy_cloudrun.py`). Nebius refuses resource creates on
+  this tenant; Hugging Face Docker Spaces now need PRO.
+- **Nemotron 3 Ultra reviews grant requests.** A third tier, `review`, for the
+  Steward Agent: Nano classifies every request, Super plans and explains, Ultra
+  reviews. On a real request Ultra took 2.7–3.9 s vs Super's 5.2 s, with fewer
+  reasoning tokens, and recommended approve-with-conditions each time. The track
+  text asks for exactly this split.
+- **Video re-filmed** in the new UI, with a new three-band architecture figure
+  (`docs/architecture.html` / `.png`) ringed band by band. No live link in it;
+  the close card says the link and code are in the submission.
+
+### Judging pass (hackathon-judge skill, against the rules and the judges' session)
+Tech 7.5 · Design 8.5 · Impact 8 · Idea 8.5 before the Ultra change. Gaps fixed
+since: README now has "Built with NVIDIA Nemotron on Nebius Token Factory" with
+measured latencies, an honest "What doesn't work yet", the new figure, and no
+longer claims a self-hosted tier is live. Not done: a per-run cost receipt, and
+a stake in the video's first 10 seconds.
+
+### Numbers
+98 tests. Live: run 1 £2,561.00 (38/3/6), run 2 £2,851.00 (43/4/0), CLM-3606.
+
 ## 2026-09-20 — session 4 (full adversarial review, and fixing what it found)
 
 ### What happened

@@ -102,6 +102,12 @@ def facts_for(request: dict, model: ArchitectureModel, audit: list[dict],
     }
 
 
+def _clip(text, limit: int) -> str:
+    """Bound model text for the UI at a word, never mid-word."""
+    text = str(text).strip()
+    return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+
+
 def _fallback(f: dict) -> dict:
     if not f["automatic_denials_for_missing_grant"]:
         return {"recommendation": "decline", "conditions": [],
@@ -133,8 +139,8 @@ async def review_request(request: dict, model: ArchitectureModel, audit: list[di
                     and parsed.get("recommendation") in RECOMMENDATIONS
                     and parsed.get("reasoning")):
                 out = {"recommendation": parsed["recommendation"],
-                       "conditions": [str(c)[:200] for c in parsed.get("conditions", [])][:4],
-                       "reasoning": str(parsed["reasoning"])[:1200]}
+                       "conditions": [_clip(c, 320) for c in parsed.get("conditions", [])][:4],
+                       "reasoning": _clip(parsed["reasoning"], 1200)}
                 by_model = True
         except Exception:
             out = None

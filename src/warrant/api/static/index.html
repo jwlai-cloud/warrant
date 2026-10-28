@@ -766,7 +766,7 @@
 
   /* ---- health / tier ---- */
   async function loadHealth() {
-    var r = await api("/healthz");
+    var r = await api("/v1/health");
     if (!r.ok) { $("tierText").textContent = "plane unreachable"; $("tierDot").className = "dot off"; return; }
     var t = r.body.tiers || {};
     var fast = t.fast || {};

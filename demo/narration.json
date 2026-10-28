@@ -215,7 +215,7 @@
     "#proof ul"
    ],
    "label": "Measured, not claimed",
-   "text": "We red-teamed it ourselves: forty findings fixed, ninety-four tests, and our own eval caught a prompt injection, which we measured and published."
+   "text": "We red-teamed it ourselves: forty findings fixed, ninety-eight tests, and our own eval caught a prompt injection, which we measured and published."
   },
   {
    "id": "f1",

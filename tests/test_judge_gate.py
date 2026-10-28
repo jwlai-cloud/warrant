@@ -87,3 +87,10 @@ def test_daily_cap(app_mod, monkeypatch):
     r = c.post("/v1/demo/run", headers={"X-Warrant-Key": KEY})
     assert r.status_code == 429 and "used up" in r.json()["error"]
     assert c.get(f"/v1/access?key={KEY}").json()["runs_left_today"] == 0
+
+
+def test_health_has_a_path_cloud_run_does_not_reserve(app_mod):
+    # Cloud Run's frontend answers /healthz itself with a 404, so the console
+    # reads /v1/health; on Cloud Run it showed "plane unreachable" otherwise.
+    c = TestClient(app_mod.app)
+    assert c.get("/v1/health").json()["tiers"] == c.get("/healthz").json()["tiers"]

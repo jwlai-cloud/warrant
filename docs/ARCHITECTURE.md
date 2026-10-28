@@ -32,7 +32,7 @@ to it, so a refusal withholds real rows rather than an abstraction. See
 | `expense-auditor` | Finance | planning agent (LangGraph, Nemotron 3 Super) | `Expense.Claim`; plans the audit, narrows refused requests, fills gaps its plan missed, drafts grant requests and the report |
 | `inventory-reconciler` | Operations | data agent | `Inventory.StockLevel`, `Supplier.Contract` |
 | `roster-planner` | People & Culture | data agent | `Employee.Roster`, `Employee.Compensation` (restricted) |
-| `steward-agent` | People & Culture | reviewing agent (Nemotron 3 Super) | reviews every grant request for the data owner before a person sees it; recommends, never grants |
+| `steward-agent` | People & Culture | reviewing agent (Nemotron 3 Ultra) | reviews every grant request for the data owner before a person sees it; recommends, never grants |
 
 **`warrant.agents.steward`** — the second reasoning agent. Works for the data
 owner, not the requester. On every grant request, by any path (console run,
@@ -106,8 +106,8 @@ explains a decision already made, and has a deterministic fallback.
 
 **`warrant.providers`** — one OpenAI-compatible HTTP client serving both
 self-hosted vLLM and Nebius Token Factory, plus a `mock` provider for offline
-work. `TierRouter` resolves a logical tier (`fast`, `deep`) to a provider and
-falls back when a tier is unreachable.
+work. `TierRouter` resolves a logical tier (`fast`, `deep`, `review`) to a provider and
+falls back when a tier is unreachable (`fast` and `review` fall back to `deep`).
 
 **`warrant.engine.audit`** — append-only JSONL log of every decision, granted or
 refused. Append-only in the sense that nothing rewrites a record; the file is
@@ -158,21 +158,21 @@ authorization decision is still auditable.
 
 ## External dependencies
 
-- **Nebius Token Factory inference API** — `POST /v1/chat/completions` against
-  `nvidia/nemotron-3-super-120b-a12b` (deep tier). Satisfies the hackathon's
-  "runtime call to the Token Factory inference API" clause.
-- **Nebius AI Cloud Serverless Endpoints** *(development and benchmarking)* — a
-  GPU endpoint running `vllm/vllm-openai` with Nemotron 3 Nano, plus a CPU-only
-  endpoint hosting the plane and console. **Both tiers currently run on Token
-  Factory**, which is what satisfies the hackathon's "runtime call to the Token
-  Factory inference API" clause on its own; self-hosting is the sovereign-tier
-  comparison, not the compliance route, and is kept off during judging so no GPU
-  burns unattended.
-- **NVIDIA Nemotron 3** — Nano (fast) and Super/Ultra (deep). The per-tier
+- **Nebius Token Factory inference API** — `POST /v1/chat/completions` for all
+  three tiers: `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (fast: classify every
+  request), `nvidia/nemotron-3-super-120b-a12b` (deep: plan, explain) and
+  `nvidia/Nemotron-3-Ultra-550b-a55b` (review: the Steward Agent). Satisfies the
+  hackathon's "runtime call to the Token Factory inference API" clause.
+- **Self-hosted vLLM** *(built, never run)* — the same client serves a
+  `vllm/vllm-openai` endpoint (`kind: vllm`), the sovereign-tier option. Nebius
+  refused every resource create on our tenant from 18 Sep, so it has not run on
+  a GPU; everything live is Token Factory.
+- **NVIDIA Nemotron 3** — Nano, Super and Ultra, one per job by size (README,
+  "Built with NVIDIA Nemotron on Nebius Token Factory"). The per-tier
   cost/latency dial is vLLM's top-level `thinking_token_budget` sampling
-  parameter; Token Factory does not document it, so it binds on the sovereign
-  tier only. The fast tier runs the `nano_v3` reasoning parser and no tool-call
-  parser (ADR-0006).
+  parameter; Token Factory does not document it, so it binds on vLLM only. The
+  fast tier runs the `nano_v3` reasoning parser and no tool-call parser
+  (ADR-0006).
 - **LangGraph** — the three org agents and the replanning loop only. Never
   imported by `warrant.engine` or `warrant.providers` (ADR-0005's layering rule,
   which ADR-0008 keeps).
@@ -181,11 +181,13 @@ authorization decision is still auditable.
 
 | Component | Runs on | Always on? | Cost note |
 |---|---|---|---|
-| Three org agents | Nebius Serverless Endpoint, CPU-only | Yes, through judging | One service each, or one container running all three |
-| Authorization plane + UI | Nebius Serverless Endpoint, CPU-only | Yes, through judging | Small continuous bill; endpoints do NOT scale to zero |
-| Fast tier (vLLM + Nemotron Nano) | Nebius Serverless Endpoint, 1× **H100** | **No — started manually** | Serverless L40S quota is zero on this tenant; `msp.cloudapps.gpu.h100` is 16. H100 also matches NVIDIA's support matrix for Nano 30B, so self-hosting serves the same model Token Factory does |
-| Deep tier | Nebius Token Factory | Managed | Per token, inside the $50 of hackathon credits |
-| Audit log | JSONL on the API container | — | Move to Object Storage before submission |
+| Plane + console + the three org agents | One container on **Google Cloud Run** (personal project), `scripts/deploy_cloudrun.py` | Scales to zero; at most one instance | Free tier while idle. A cold start adds a few seconds to the first visit |
+| All three Nemotron tiers | Nebius Token Factory | Managed | Per token. Live runs need the judges' access code and are capped per day; everyone else gets the recorded live run (`static/replay.json`) played in their browser |
+| Audit log, grants, approvals | Memory and JSONL in the container | — | Reset on restart, which is also what the console's Reset does. A demo, not a deployment |
+
+One instance at most, because that state is in memory: a second instance would
+disagree with the first. Nebius was the intended host; it refused every resource
+create on our tenant from 18 Sep, and Hugging Face Docker Spaces now need PRO.
 
 When the fast tier is stopped, `TierRouter` falls through to the deep tier, the
 request still succeeds, and the audit record says which tier served it.

@@ -12,3 +12,9 @@ def test_shipped_config_reviews_on_ultra_with_fallback(monkeypatch):
     assert "ultra" in cfg.tiers["review"].model.lower()
     assert cfg.fallback["review"] == "deep"
     assert {"fast", "deep", "review"} <= set(cfg.tiers)
+
+
+def test_review_text_is_clipped_at_a_word():
+    from warrant.agents.steward import _clip
+    assert _clip("short", 10) == "short"
+    assert _clip("approved pay rates and more", 18) == "approved pay…"

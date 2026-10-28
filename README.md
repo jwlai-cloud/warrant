@@ -102,14 +102,14 @@ Every decision — granted or refused — is written to an append-only audit log
 
 ## How the agents work together
 
-![WARRANT topology: four agents across three departments, with the authorization plane between them](docs/topology.png)
+![Fig. 2: how a request crosses a department line. i. Plan in Finance, ii. Decide at WARRANT with no model in the decision, iii. Escalate to People & Culture, where the Steward Agent recommends and a person approves](docs/architecture.png)
 
 | Agent | Department | Kind | What it does |
 |---|---|---|---|
 | **Expense Auditor** | Finance | planning agent · LangGraph · Nemotron 3 Super | plans the audit, writes every request, narrows when refused, notices data its plan forgot, drafts grant requests and the report |
 | **Inventory Reconciler** | Operations | data agent | holds supplier contracts and stock; re-checks every warrant before serving |
 | **Roster Planner** | People & Culture | data agent | holds the roster and the restricted salary bands; re-checks every warrant |
-| **Steward Agent** | People & Culture | reviewing agent · Nemotron 3 Super | reviews each grant request **for the data owner** before a person sees it; recommends approve, approve with conditions, or decline — never grants |
+| **Steward Agent** | People & Culture | reviewing agent · Nemotron 3 Ultra | reviews each grant request **for the data owner** before a person sees it; recommends approve, approve with conditions, or decline — never grants |
 | *Human steward* | People & Culture | person | reads the requester's case and their own agent's review, and decides |
 
 Between them sits **WARRANT**, the authorization plane. Every cross-department
@@ -191,14 +191,36 @@ Pinned by [`tests/test_ab_demo.py`](tests/test_ab_demo.py). If that test passes
 with classification disabled, the model has stopped being load-bearing
 ([ADR-0007](docs/adr/0007-classification-must-change-the-outcome.md)).
 
+## Built with NVIDIA Nemotron on Nebius Token Factory
+
+Three Nemotron 3 sizes, each on the job its size fits. All three are served by
+Nebius Token Factory through one OpenAI-compatible client; which model serves a
+job is one line of `config/warrant.yaml`.
+
+| Job | Model | Why this size | Measured (recorded live run) |
+|---|---|---|---|
+| Classify which data a request touches, on **every** request | **Nemotron 3 Nano 30B-A3B** | On the hot path of every cross-department call, so it has to be fast and cheap. It can only narrow the callee's declared data, never widen it | median **1.65 s** per call |
+| Plan the audit; explain each decision in plain words | **Nemotron 3 Super 120B-A12B** | Planning and explaining need real reasoning over the architecture model, a few times per run | 1.7–4.0 s per explanation |
+| Review a grant request for the data owner (Steward Agent) | **Nemotron 3 Ultra 550B-A55B** | The rarest call and the highest-stakes one: a person decides on the back of it. On the same real request it answered in 2.7–3.9 s against Super's 5.2 s, with fewer reasoning tokens | one call per escalation |
+
+No model decides authorization: the grant table does. A whole live audit (47
+claims, 4 cross-department decisions, plan, explanations and review) takes about
+20 seconds. If Ultra is unreachable the review falls back to Super, and the
+console names the model that actually answered.
+
+**Where Token Factory sped us up.** One API key gave us all three sizes with no
+GPU to provision, which mattered: Nebius refused every resource create on our
+tenant from 18 Sep, so the self-hosted vLLM path we built (same model, same
+client, `kind: vllm`) never had a GPU to run on. Swapping Super for Ultra on the
+Steward Agent was a config change and a 30-second side-by-side test.
+
 ## Architecture in one breath
 
 A small subset of the TOGAF content metamodel — Organization Unit, Business
-Capability, Data Entity, Agent, Grant — loaded from YAML, validated on load. A
-two-tier Nemotron stack: a sovereign fast tier (self-hosted Nemotron Nano on
-vLLM) and a managed deep tier (Nemotron Super/Ultra on Nebius Token Factory).
-One OpenAI-compatible client serves both; switching a tier is a config edit, not
-a branch. Full detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Capability, Data Entity, Agent, Grant — loaded from YAML, validated on load.
+Three Nemotron tiers on Nebius Token Factory (above). The same client also
+serves a self-hosted vLLM endpoint, so moving the fast tier onto your own GPU is
+a config edit, not a branch. Full detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quickstart (no GPU, no credits, no network)
 
@@ -291,6 +313,28 @@ unsolved; a WARRANT refusal is one.
 - **Not A2A yet.** A2A v1.0 §7.5 requires implementers to supply authorization
   scoping and defines no mechanism — so the fit is exact, and it is a transport
   swap at one seam. Deferred until the replanning loop works.
+
+## What doesn't work yet
+
+Named so a judge doesn't have to find it:
+
+- **Classification varies run to run.** At temperature 0, 3 of 20 eval cases
+  return different entity sets across runs (ADR-0009). The grant table is
+  deterministic; what reaches it is not quite. In one recorded live run the
+  plan forgot supplier contracts, so 40 claims could not be checked until the
+  agent noticed and asked again — you can see it replan in the trace.
+- **The prompt injection above is mitigated, not solved.** Instrumented
+  (`decisive_exclusions`) and switchable off (`strict_narrowing`), and observed
+  once in 85 runs after hardening.
+- **The hosted demo is a demo profile.** `agent_auth` is off, so an agent's
+  identity is whatever the request says; production sets it to `required`
+  with per-agent tokens. State (grants, audit log, the daily live-run cap) is
+  in memory on one instance and resets when it restarts.
+- **The self-hosted path has never run on a GPU.** The vLLM tier is built and
+  tested against the same client, but Nebius refused every resource create on
+  our tenant from 18 Sep, so everything live runs on Token Factory.
+- **The thinking budget is a no-op on Token Factory.** It binds on vLLM only;
+  on the managed tiers `max_tokens` is the real bound.
 
 ## Prior art this builds on and does not duplicate
 
