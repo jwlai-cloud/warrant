@@ -33,7 +33,11 @@ announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 ## What it does
 
-**Live demo:** _hosted URL added at submission_ · press **Run audit**.
+**Live demo:** for the hackathon judges only. The link and access code are in
+the Devpost submission's testing instructions, because every run spends real
+Token Factory credit. It is hosted on a free Hugging Face Space, so if it has
+been idle the first visit takes about a minute to wake up. Anyone can run it
+locally (below), or watch the demo video on the Devpost page.
 
 Northwind Group's Expense Auditor (Finance) audits 47 Q3 claims worth
 £11,179.80. Four of them are wrong — and each one can only be caught with data

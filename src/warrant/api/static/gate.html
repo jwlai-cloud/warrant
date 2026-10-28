@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WARRANT · judge access</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Work+Sans:wght@400;500;600&family=Space+Mono&display=swap">
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;box-sizing:border-box;
+    background:radial-gradient(circle at 70% 40%,#3B5CBA 0,#2D4AA0 55%);color:#F4EEDD;font:400 16px/1.5 "Work Sans",system-ui,sans-serif}
+  main{max-width:460px;width:100%}
+  .brand{font:700 15px/1 "Space Mono",monospace;letter-spacing:.3em}
+  h1{font:500 48px/1 "Cormorant Garamond",Georgia,serif;margin:28px 0 12px}
+  p{color:#E9E1CB;margin:0 0 24px}
+  form{display:flex;gap:10px;flex-wrap:wrap}
+  input{flex:1 1 220px;font:400 16px/1 "Space Mono",monospace;padding:14px 16px;border-radius:999px;border:1.5px solid #F4EEDD;background:transparent;color:#F4EEDD}
+  input::placeholder{color:#D3D9EF}
+  button{font:600 16px/1 "Work Sans",sans-serif;padding:14px 22px;border-radius:999px;border:0;background:#F4EEDD;color:#22398A;cursor:pointer}
+  :focus-visible{outline:2px solid #F0CF7A;outline-offset:3px}
+  [hidden]{display:none!important}
+  small{display:block;margin-top:18px;color:#D3D9EF;font:400 13px/1.5 "Space Mono",monospace}
+</style></head><body>
+<main>
+  <div class="brand">WARRANT</div>
+  <h1>Judge access</h1>
+  <p>This demo runs NVIDIA Nemotron live on Nebius Token Factory, so it is open to the hackathon judges only. The access code is in the submission's testing instructions.</p>
+  <form method="get"><input name="key" type="password" placeholder="Access code" aria-label="Access code" required autocomplete="off"><button type="submit">Open</button></form>
+  <small id="bad" hidden>That code didn't work. Check the testing instructions.</small>
+  <small>Code and video: github.com/jwlai-cloud/warrant</small>
+</main>
+<script>if (new URLSearchParams(location.search).has("key")) document.getElementById("bad").hidden = false;</script>
+</body></html>

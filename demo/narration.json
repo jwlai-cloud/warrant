@@ -222,7 +222,8 @@
    "go": "card:close",
    "spot": [
     "#close h1",
-    "#close .links"
+    "#close .links",
+    "#close .foot"
    ],
    "label": "Try it live",
    "text": "WARRANT. Agents that cross a department line only with a warrant, and that replan when they're told no."
