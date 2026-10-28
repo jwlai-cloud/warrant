@@ -6,8 +6,9 @@
 # this container only hosts the plane and the UI a judge opens.
 FROM python:3.12-slim
 
-# HF runs the container as UID 1000.
-RUN useradd -m -u 1000 user
+# HF runs the container as UID 1000. The app dir is made here, owned by that
+# user: the classic builder (Cloud Build) creates a WORKDIR as root.
+RUN useradd -m -u 1000 user && install -d -o user /home/user/app
 USER user
 ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH PYTHONUNBUFFERED=1
 WORKDIR $HOME/app
