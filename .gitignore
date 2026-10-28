@@ -14,3 +14,4 @@ audit/grant_requests.jsonl
 demo-video/
 audit/
 design/
+.claude/worktrees/

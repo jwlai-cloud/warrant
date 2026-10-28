@@ -36,7 +36,7 @@ longer claims a self-hosted tier is live. Not done: a per-run cost receipt, and
 a stake in the video's first 10 seconds.
 
 ### Numbers
-98 tests. Live: run 1 £2,561.00 (38/3/6), run 2 £2,851.00 (43/4/0), CLM-3606.
+99 tests. Live: run 1 £2,561.00 (38/3/6), run 2 £2,851.00 (43/4/0), CLM-3606.
 
 ## 2026-09-20 — session 4 (full adversarial review, and fixing what it found)
 

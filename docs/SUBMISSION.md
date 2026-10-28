@@ -64,7 +64,9 @@ every one the agent asks WARRANT.
   £2,851.00 under query. The refusal was hiding an overpayment.
 
 Every decision, granted or refused, is written to an append-only audit log. The
-plane is also an MCP server, so any agent can ask it for a warrant.
+demo's agents call WARRANT over HTTP; it also ships an MCP server (three
+tools: `request_warrant`, `list_my_access`, `raise_grant_request`), so any MCP
+agent, such as Claude Desktop or another team's, can ask it for a warrant too.
 
 **Try it:** the hosted console opens on a landing page with a guided tour (ten
 steps; you do the clicks). Without an access code it plays back a real recorded
@@ -90,7 +92,7 @@ visit takes a few seconds longer.
 - **One client, any tier.** One OpenAI-compatible client serves Token Factory
   and self-hosted vLLM; which model serves a job is one line of config, with a
   fallback when a tier is unreachable.
-- **Rigor.** 98 tests. An adversarial review of our own code: 40 confirmed
+- **Rigor.** 99 tests. An adversarial review of our own code: 40 confirmed
   findings, all fixed. A classifier eval that reports recall first, because a
   missed entity is a security failure and an extra one is only an inconvenience.
 

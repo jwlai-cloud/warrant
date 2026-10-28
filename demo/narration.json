@@ -93,8 +93,8 @@
    "spot": [
     "#stack"
    ],
-   "label": "Nemotron 3 Nano · Super · Ultra on Nebius Token Factory",
-   "text": "All on Nebius Token Factory: Nemotron Nano for every request, Super to plan, Ultra to review. WARRANT is an MCP server."
+   "label": "Nemotron 3 Nano · Super · Ultra on Nebius Token Factory · MCP tools for any agent",
+   "text": "On Nebius Token Factory: Nemotron Nano for every request, Super to plan, Ultra to review. Any MCP agent can call WARRANT too."
   },
   {
    "id": "c1",
@@ -103,7 +103,7 @@
     "#matrix tbody tr:first-child"
    ],
    "label": "Finance's rights, set by each data owner",
-   "text": "Rights are explicit. Finance may read its claims, the contracts, and the roster."
+   "text": "Rights are explicit: Finance may read its claims, contracts and roster."
   },
   {
    "id": "c2",
@@ -212,10 +212,10 @@
    "id": "e1",
    "go": "card:proof",
    "spot": [
-    "#proof ul"
+    "#inj"
    ],
-   "label": "Measured, not claimed",
-   "text": "We red-teamed it ourselves: forty findings fixed, ninety-eight tests, and our own eval caught a prompt injection, which we measured and published."
+   "label": "A prompt injection our own eval found · published",
+   "text": "Our own eval caught a prompt injection: one sentence talked the model into dropping salary data. We measured it, instrumented it, and published it."
   },
   {
    "id": "f1",
