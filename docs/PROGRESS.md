@@ -7,7 +7,7 @@
   huashu-design directions, then "B and E but background not so dark": an
   ultramarine landing page with an orbital Fig. 1, a light paper console,
   Cormorant Garamond / Work Sans / Space Mono. Choice recorded in
-  `design/direction-approved.md`.
+  `design/direction-approved.md` (local, not in the repo).
 - **Onboarding.** Landing page, a "Step N of 4" bar, a "?" on every page and a
   10-step guided tour where the visitor does the clicks (run, approve, re-run).
   The judges asked for exactly this in the "Will It Ship?" session.

@@ -13,3 +13,4 @@ audit/*.jsonl
 audit/grant_requests.jsonl
 demo-video/
 audit/
+design/

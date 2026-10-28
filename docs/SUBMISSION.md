@@ -16,7 +16,7 @@ AI agents now cross department lines. WARRANT gives each crossing a warrant or a
 ## Built with
 nvidia-nemotron · nebius-token-factory · python · fastapi · langgraph · mcp · server-sent-events · google-cloud-run
 
-## Gallery (design/gallery/, in this order)
+## Gallery (local design/gallery/, not in the repo; upload in this order)
 1. `01-cover.png` — Every crossing needs a warrant.
 2. `02-architecture.png` — Fig. 2: how a request crosses a department line.
 3. `03-refused.png` — Refused, with the reason.
