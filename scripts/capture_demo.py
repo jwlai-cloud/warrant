@@ -253,7 +253,7 @@ async def main() -> None:
                 beats.append({"id": b["id"], "start": round(start + lead, 3),
                               "end": round(edl.length(), 3)})
 
-            await asyncio.sleep(2.5)                # let the close card breathe
+            await asyncio.sleep(1.5)                # let the close card breathe
             edl.keep_until(edl.now())
             raw_path = await page.video.path()
             await ctx.close()

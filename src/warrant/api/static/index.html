@@ -1031,7 +1031,8 @@
     var box = el("div", "review");
     var head = el("div", "review-head");
     head.appendChild(document.createTextNode("Steward Agent review · "
-      + (rv.by_model ? "Nemotron" : "rules, no model")));
+      + (!rv.by_model ? "rules, no model" : /ultra/i.test(rv.model || "") ? "Nemotron 3 Ultra"
+         : /super/i.test(rv.model || "") ? "Nemotron 3 Super" : "Nemotron")));
     var rec = rv.recommendation || "";
     head.appendChild(el("span", "tag " + (rec === "decline" ? "bad" : rec === "approve" ? "ok" : "warn"),
       rec.replace(/_/g, " ")));

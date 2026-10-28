@@ -70,7 +70,7 @@
     "#decideCore"
    ],
    "label": "ii. Decide · Nano narrows · the grant table decides",
-   "text": "WARRANT answers each request. Nemotron Nano works out which data the call touches. Then the grant table decides. No model makes that call."
+   "text": "WARRANT answers each request. Nemotron works out which data the call touches, then the grant table decides. No model makes that call."
   },
   {
    "id": "b4",
@@ -93,8 +93,8 @@
    "spot": [
     "#stack"
    ],
-   "label": "Nemotron 3 on Nebius Token Factory · MCP",
-   "text": "It all runs on NVIDIA Nemotron through Nebius Token Factory, and WARRANT is an MCP server, so any agent can ask it."
+   "label": "Nemotron 3 Nano · Super · Ultra on Nebius Token Factory",
+   "text": "All on Nebius Token Factory: Nemotron Nano for every request, Super to plan, Ultra to review. WARRANT is an MCP server."
   },
   {
    "id": "c1",
@@ -178,7 +178,7 @@
    "spot": [
     "#reqList .review"
    ],
-   "label": "Steward Agent's review · for the data owner",
+   "label": "Steward Agent · Nemotron 3 Ultra · for the data owner",
    "text": "Before any person sees it, the Steward Agent reviews it for People and Culture, and recommends approval."
   },
   {

@@ -32,10 +32,24 @@ tiers:
     reasoning_budget: 512
     timeout_s: 120
 
+  # Review path: the Steward Agent's recommendation on a grant request. Rare
+  # (only after a refusal the agent escalates) and the highest-stakes call in
+  # the system, since a person decides on the back of it - so the largest
+  # Nemotron. On a real request it ran faster than Super (2.7-3.9s vs 5.2s,
+  # fewer reasoning tokens) and recommended consistently.
+  review:
+    kind: token_factory
+    base_url: ${WARRANT_TF_BASE_URL}
+    api_key: ${WARRANT_TF_API_KEY}
+    model: nvidia/Nemotron-3-Ultra-550b-a55b
+    reasoning_budget: 512
+    timeout_s: 120
+
 # If a tier is unreachable (e.g. the GPU endpoint is stopped to save money),
 # fall through to this tier instead of failing. Set to null to fail hard.
 fallback:
   fast: deep
+  review: deep
   deep: null
 
 # ---- THIS IS THE DEMO PROFILE. It is deliberately open. ----

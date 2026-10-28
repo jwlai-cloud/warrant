@@ -292,16 +292,22 @@ async def decide_grant_request(request_id: str, body: DecisionIn):
     return asdict(r)
 
 
-def _llm():
-    """The deep tier as a plain async text function, or None on the offline
-    profile, where the tier is a stub that cannot plan or review."""
+def _llm(tier: str = "deep", served: dict | None = None):
+    """A tier as a plain async text function, or None on the offline profile,
+    where the tier is a stub that cannot plan or review. A tier the config does
+    not define falls back to deep. `served` records the model that answered,
+    which after a router fallback is not necessarily the one asked for."""
     assert _svc is not None
-    deep = _svc.config.tiers.get("deep")
-    if not deep or deep.kind == "mock":
+    if tier not in _svc.config.tiers:
+        tier = "deep"
+    cfg = _svc.config.tiers.get(tier)
+    if not cfg or cfg.kind == "mock":
         return None
 
     async def llm(system: str, user: str, schema: dict | None = None) -> str:
-        c = await _svc.router.complete("deep", system, user, json_schema=schema)
+        c = await _svc.router.complete(tier, system, user, json_schema=schema)
+        if served is not None:
+            served["model"] = c.model
         return c.text
     return llm
 
@@ -313,9 +319,11 @@ async def _steward_review(gr_id: str, on_event=None) -> dict | None:
     r = _svc.requests.get(gr_id)
     if r is None or r.state != "pending" or r.review:
         return r.review if r else None
+    served: dict = {}
     review = await review_request(
         asdict(r), _svc.model, audit.read_all(_svc.config.audit_path, limit=500),
-        [asdict(x) for x in _svc.requests.all()], llm=_llm())
+        [asdict(x) for x in _svc.requests.all()], llm=_llm("review", served))
+    review["model"] = served.get("model", "") if review["by_model"] else ""
     _svc.requests.attach_review(gr_id, review)
     if on_event is not None:
         on_event({"t": None, "kind": "review",
