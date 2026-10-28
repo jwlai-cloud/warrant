@@ -22,14 +22,25 @@ What the model does here, and what it does not:
 
 Graph:
 
-    plan -> gather -> reconcile -> (refused?) -> replan -> report
-                                       |                     ^
-                                       +--- all granted -----+
+    START -> plan -> gather -> reconcile --(all granted)--> report -> END
+                       ^           |                          ^
+                       |      (refused, or data             |
+                       |       never asked for)             |
+                       |           v                          |
+                       +--- replan --(nothing to retry)--> escalate
+                    (one retry pass)          after the retry pass ^
 
-`replan` retries narrowed requests, re-runs reconciliation on what that
-recovered, escalates what remains blocked, and records the refused path.
+`replan` asks for data the plan forgot and narrows each refused request once,
+then hands those requests back to `gather` with `Command(goto="gather")`. The
+loop is bounded by `attempt` in state (MAX_RETRY_PASSES), never by the
+recursion limit. The second `reconcile` reports only what the retry newly
+found; `escalate` drafts a grant request for what is still blocked and records
+the refused path.
 
-Every step appends to `trace`, which the console replays with real timings.
+Dependencies (`call_fn`, `llm`) arrive per run as `context=Ctx(...)`, the
+claims as graph input (the Q3 fixture when absent), so one compiled graph is
+safe to reuse. Every event is streamed live through LangGraph's custom stream
+and accumulated in `trace`, which the console replays with real timings.
 
 With `llm=None` (tests, the offline profile) every model step falls back to a
 deterministic equivalent, so the graph is fully testable without inference.
@@ -38,16 +49,28 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import operator
 import time
-from typing import Any, Awaitable, Callable, TypedDict
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from functools import cache
+from typing import Annotated, Any, Literal, TypedDict
 
-from langgraph.graph import END, StateGraph
+from langgraph.config import get_stream_writer
+from langgraph.graph import END, START, StateGraph
+from langgraph.runtime import Runtime
+from langgraph.types import Command
+from pydantic import BaseModel, ValidationError
 
 from .base import GovernedResult
 from .fixtures import DATASETS
 
+log_ = logging.getLogger(__name__)
+
 AGENT_ID = "expense-auditor"
 CURRENCY = "£"
+MAX_RETRY_PASSES = 1          # replan -> gather happens at most this many times
 
 # The plan used when no model is available or the model's plan fails validation.
 FALLBACK_PLAN: list[dict[str, str]] = [
@@ -66,23 +89,46 @@ LLM = Callable[[str, str, "dict | None"], Awaitable[str]]
 CallFn = Callable[[str, str], Awaitable[GovernedResult]]
 
 
-class AuditState(TypedDict, total=False):
+@dataclass(frozen=True)
+class Ctx:
+    """Per-run dependencies: `call_fn(callee, purpose) -> GovernedResult` and
+    `llm(system, user, schema) -> str`, injected so the graph runs against the
+    real plane and real inference in the console, and against stubs in tests."""
+    call_fn: CallFn
+    llm: LLM | None = None
+
+
+def _merge(a: dict, b: dict) -> dict:
+    return {**a, **b}
+
+
+class AuditInput(TypedDict, total=False):
+    claims: list[dict]
+
+
+class AuditOutput(TypedDict, total=False):
     claims: list[dict]
     plan: list[dict]
     plan_source: str
     rationale: str
-    results: list[dict]
-    gathered: dict[str, Any]
-    refusals: list[dict]
+    results: Annotated[list[dict], operator.add]
     closed: list[str]
     flagged: list[dict]
     unresolved: list[str]
-    blocked_by: dict[str, list[str]]
     grant_requests: list[dict]
     blocked_entities: list[str]
-    trace: list[dict]
+    trace: Annotated[list[dict], operator.add]
     report: str
     summary: str
+
+
+class AuditState(AuditOutput, total=False):
+    t0: float                                       # this run's clock
+    pending: list[dict]                             # what the next gather asks
+    attempt: int                                    # retry passes taken
+    gathered: Annotated[dict[str, Any], _merge]
+    refusals: Annotated[list[dict], operator.add]
+    blocked_by: dict[str, list[str]]
 
 
 # ---------------------------------------------------------------- the checks
@@ -130,7 +176,12 @@ def audit_claims(claims: list[dict], gathered: dict[str, Any]) -> dict[str, Any]
                 block("Supplier.Contract", cid)
                 continue
             contract = contracts.get(c["supplier_id"])
-            if contract and c["amount"] > _ceiling(contract):
+            if contract is None:                  # no contract on file is a query, not a pass
+                flagged.append({"claim": cid, "kind": "no-contract",
+                                "amount": c["amount"], "evidence": "Supplier.Contract",
+                                "detail": f"{c['supplier']} has no contract on file"})
+                continue
+            if c["amount"] > _ceiling(contract):
                 flagged.append({"claim": cid, "kind": "over-contract",
                                 "amount": c["amount"], "evidence": "Supplier.Contract",
                                 "detail": f"{c['supplier']} billed {CURRENCY}{c['amount']:,.2f}; "
@@ -154,8 +205,13 @@ def audit_claims(claims: list[dict], gathered: dict[str, Any]) -> dict[str, Any]
                 block("Employee.Compensation", cid)
                 continue
             band = bands.get(c["employee_id"])
-            limit = band["max_daily_allowance"] * 3 if band else 0
-            if band and c["amount"] > limit:
+            if band is None:                      # no band on record is a query, not a pass
+                flagged.append({"claim": cid, "kind": "no-band",
+                                "amount": c["amount"], "evidence": "Employee.Compensation",
+                                "detail": f"{c['employee_id']} has no salary band on record"})
+                continue
+            limit = band["max_daily_allowance"] * 3
+            if c["amount"] > limit:
                 flagged.append({"claim": cid, "kind": "over-band",
                                 "amount": c["amount"], "evidence": "Employee.Compensation",
                                 "detail": f"{CURRENCY}{c['amount']:,.2f} claimed; "
@@ -250,279 +306,322 @@ def _claims_digest(claims: list[dict]) -> str:
               "allowances carry an employee id and a date.")
 
 
-def _valid_plan(raw: dict) -> list[dict]:
+class _Step(BaseModel):
+    callee: str = ""
+    purpose: str = ""
+    why: str = ""
+
+
+class _Plan(BaseModel):
+    rationale: str = ""
+    steps: list[_Step] | None = None
+
+
+def _valid_plan(raw: _Plan) -> list[dict]:
     """Keep only steps that name a real peer and a usable purpose."""
     peers = {d["agent"] for d in _directory()}
     out, seen = [], set()
-    for s in (raw.get("steps") or [])[:4]:
-        callee = str(s.get("callee", "")).strip()
-        purpose = str(s.get("purpose", "")).strip()[:300]
+    for s in (raw.steps or [])[:4]:
+        callee, purpose = s.callee.strip(), s.purpose.strip()[:300]
         if callee not in peers or not purpose or (callee, purpose) in seen:
             continue
         seen.add((callee, purpose))
-        out.append({"callee": callee, "purpose": purpose,
-                    "why": str(s.get("why", "")).strip()[:200]})
+        out.append({"callee": callee, "purpose": purpose, "why": s.why.strip()[:200]})
     return out
+
+
+# ---------------------------------------------------------------- helpers
+
+def _event(t0: float, kind: str, text: str, **data) -> dict:
+    """One trace event, streamed live (stream_mode="custom") and returned so the
+    node can add it to `trace`."""
+    event = {"t": round((time.perf_counter() - t0) * 1000), "kind": kind,
+             "text": text, **({"data": data} if data else {})}
+    get_stream_writer()(event)
+    return event
+
+
+async def _ask(llm: LLM | None, system: str, user: str,
+               schema: dict | None = None) -> str | None:
+    if llm is None:
+        return None
+    try:
+        out = await llm(system, user, schema)
+        return out.strip() if out and out.strip() else None
+    except Exception as exc:  # noqa: BLE001 - every model step has a deterministic fallback,
+        log_.warning("model step failed, using the fallback: %s: %s",  # but say so
+                     type(exc).__name__, exc)
+        return None
+
+
+async def _call(ctx: Ctx, t0: float, step: dict, acc: dict, retry: bool) -> None:
+    """One governed request. Appends to `acc` as it completes, so the trace is
+    in the order WARRANT answered. A call_fn that raises is recorded as a
+    refusal with no missing grants: nothing to escalate, the run goes on."""
+    callee, purpose = step["callee"], step["purpose"]
+    try:
+        r: GovernedResult = await ctx.call_fn(callee, purpose)
+    except Exception as exc:  # noqa: BLE001 - a failed call is an outcome, not a crash
+        err = f"{type(exc).__name__}: {exc}"
+        log_.warning("governed call to %s failed: %s", callee, err)
+        acc["results"].append({"callee": callee, "purpose": purpose, "granted": False,
+                               "entities": [], "served_by": {}, "retry": retry,
+                               "error": err})
+        acc["refusals"].append({"callee": callee, "purpose": purpose, "entities": [],
+                                "missing": [], "justification": "", "retry": retry,
+                                "error": err})
+        acc["trace"].append(_event(t0, "refused", f"{callee} did not answer: {err}",
+                                   callee=callee, purpose=purpose, entities=[],
+                                   missing=[], justification="", served_by={},
+                                   retry=retry, error=err))
+        return
+    acc["results"].append({"callee": callee, "purpose": purpose, "granted": r.granted,
+                           "entities": r.entities, "served_by": r.served_by,
+                           "retry": retry})
+    if r.granted:
+        rows = (r.data or {}).get("rows", {}) if isinstance(r.data, dict) else {}
+        acc["gathered"].update(rows)
+        acc["trace"].append(_event(t0, "granted",
+                                   f"{callee} granted {', '.join(r.entities)}",
+                                   callee=callee, purpose=purpose, entities=r.entities,
+                                   warrant=r.warrant_id, served_by=r.served_by,
+                                   retry=retry))
+        return
+    acc["refusals"].append({"callee": callee, "purpose": purpose, "entities": r.entities,
+                            "missing": r.missing_grants,
+                            "justification": r.justification, "retry": retry})
+    acc["trace"].append(_event(t0, "refused",
+                               f"{callee} refused: no grant to "
+                               + ", ".join(m["data_entity"] for m in r.missing_grants),
+                               callee=callee, purpose=purpose, entities=r.entities,
+                               missing=r.missing_grants, justification=r.justification,
+                               served_by=r.served_by, retry=retry))
+
+
+def _unasked_gaps(state: AuditState) -> list[str]:
+    """Entities that block claims but that the agent never requested at all.
+    A plan can simply forget a kind of data; without this, the claims that
+    needed it would end the run unchecked and nobody would be asked."""
+    requested = set(state.get("gathered", {}))
+    for r in state.get("refusals", []):
+        requested |= set(r["entities"])
+    return [e for e in state.get("blocked_by", {}) if e not in requested]
+
+
+# ---------------------------------------------------------------- the nodes
+
+async def plan(state: AuditState, runtime: Runtime[Ctx]) -> dict:
+    llm = runtime.context.llm
+    t0 = time.perf_counter()
+    claims = state.get("claims") or DATASETS[AGENT_ID]["Expense.Claim"]
+    trace = [_event(t0, "start", f"Audit Q3 expense claims - {_claims_digest(claims)}")]
+    prompt = json.dumps({"task": "Audit Q3 expense claims",
+                         "claims": _claims_digest(claims),
+                         "directory": _directory()})
+    steps, source, rationale, why_fallback = [], "fallback", "", ""
+    # Two attempts. Measured against live Nemotron Super, roughly one plan
+    # in five came back as valid JSON with an empty steps list; a second
+    # ask almost always succeeds, and costs one call only when needed.
+    for _attempt in range(2 if llm is not None else 0):
+        raw = await _ask(llm, _PLANNER, prompt, _PLAN_SCHEMA)
+        if not raw:
+            why_fallback = "no response from the model"
+            continue
+        try:
+            parsed = _Plan.model_validate_json(raw)
+        except ValidationError as exc:
+            why_fallback = ("model plan was not valid JSON"
+                            if exc.errors()[0]["type"] == "json_invalid"
+                            else "model plan did not match the plan schema")
+            continue
+        steps = _valid_plan(parsed)
+        if steps:
+            rationale = parsed.rationale[:400]
+            source, why_fallback = "model", ""
+            break
+        why_fallback = "model plan named no usable requests"
+    if not steps:
+        steps = FALLBACK_PLAN
+        if llm is None:
+            why_fallback = "no model configured"
+    trace.append(_event(t0, "plan", f"Planned {len(steps)} requests"
+                        + (" (Nemotron)" if source == "model"
+                           else f" (fallback plan: {why_fallback})"),
+                        steps=steps, rationale=rationale, source=source,
+                        why_fallback=why_fallback))
+    return {"t0": t0, "claims": claims, "plan": steps, "plan_source": source,
+            "rationale": rationale, "pending": steps, "attempt": 0,
+            "grant_requests": [], "trace": trace}
+
+
+async def gather(state: AuditState, runtime: Runtime[Ctx]) -> dict:
+    """Every pending request at once. They are independent, each costs two
+    model calls (classify, justify), and sequentially a 4-request plan spent
+    most of the run waiting. Results land in whatever order WARRANT answers."""
+    acc: dict = {"results": [], "gathered": {}, "refusals": [], "trace": []}
+    retry = state.get("attempt", 0) > 0
+    await asyncio.gather(*(_call(runtime.context, state["t0"], step, acc, retry)
+                           for step in state["pending"]))
+    return acc
+
+
+async def reconcile(state: AuditState) -> dict:
+    a = audit_claims(state["claims"], state.get("gathered", {}))
+    retry = state.get("attempt", 0) > 0
+    # After the retry pass only what the retry newly found is news; the console
+    # adds a finding card per event.
+    seen = {f["claim"] for f in state.get("flagged", [])} if retry else set()
+    trace = [_event(state["t0"], "finding", f"{f['claim']}: {f['detail']}", finding=f)
+             for f in a["flagged"] if f["claim"] not in seen]
+    if not retry:
+        trace.append(_event(state["t0"], "reconciled",
+                            f"{len(a['closed'])} verified, {len(a['flagged'])} flagged, "
+                            f"{len(a['unresolved'])} could not be checked",
+                            closed=len(a["closed"]), flagged=len(a["flagged"]),
+                            blocked={k: len(v) for k, v in a["blocked_by"].items()}))
+    return {**a, "trace": trace}
+
+
+def route(state: AuditState) -> Literal["replan", "escalate", "report"]:
+    if state.get("attempt", 0) > 0:
+        return "escalate"
+    return "replan" if (state.get("refusals") or _unasked_gaps(state)) else "report"
+
+
+async def replan(state: AuditState,
+                 runtime: Runtime[Ctx]) -> Command[Literal["gather", "escalate"]]:
+    """Decide what to ask again: data the plan forgot, and the permitted part
+    of each refused request. Those go back through `gather` once."""
+    llm, t0 = runtime.context.llm, state["t0"]
+    trace, retries = [], []
+
+    # 0. Fill gaps: claims blocked on data the plan never asked for.
+    holders = {e: d["agent"] for d in _directory() for e in d["holds"]}
+    for entity in _unasked_gaps(state):
+        callee = holders.get(entity)
+        if not callee:
+            continue
+        n = len(state["blocked_by"].get(entity, []))
+        purpose = await _ask(llm, _GAP_FILLER, json.dumps(
+            {"data_needed": entity, "claims_waiting": n, "audit": "Q3 expense claims"}))
+        by_model = bool(purpose)
+        if not purpose:
+            purpose = f"{entity} to verify {n} Q3 claims that cannot be checked without it"
+        trace.append(_event(t0, "replan", f"{n} claims could not be checked: requesting "
+                            f"{entity} from {callee}", gap=entity, new_purpose=purpose,
+                            by_model=by_model))
+        retries.append({"callee": callee, "purpose": purpose})
+
+    # 1. Narrow: a refused request that also touched permitted data is
+    #    reissued asking only for the permitted part.
+    for ref in state.get("refusals", []):
+        refused = {m["data_entity"] for m in ref["missing"]}
+        permitted = [e for e in ref["entities"] if e not in refused]
+        if not permitted or ref.get("retry"):
+            continue
+        purpose = await _ask(llm, _NARROWER, json.dumps(
+            {"original_purpose": ref["purpose"], "permitted_data": permitted}))
+        by_model = bool(purpose)
+        if not purpose:
+            purpose = f"{', '.join(permitted)} needed for the Q3 expense audit"
+        trace.append(_event(t0, "replan", f"Narrowing request to {ref['callee']}: ask "
+                            f"only for {', '.join(permitted)}", refused=sorted(refused),
+                            permitted=permitted, new_purpose=purpose, by_model=by_model))
+        retries.append({"callee": ref["callee"], "purpose": purpose})
+
+    attempt = state.get("attempt", 0)
+    if retries and attempt < MAX_RETRY_PASSES:
+        return Command(update={"trace": trace, "pending": retries, "attempt": attempt + 1},
+                       goto="gather")
+    return Command(update={"trace": trace}, goto="escalate")
+
+
+async def escalate(state: AuditState, runtime: Runtime[Ctx]) -> dict:
+    """Draft a grant request for what is still blocked, addressed to whoever can
+    grant it, and record the refused path so the next run does not retry it
+    blind. Every refusal counts, the original included even when a narrowed
+    retry recovered the permitted part: the refused entity is still blocked."""
+    llm, t0 = runtime.context.llm, state["t0"]
+    refusals = state.get("refusals", [])
+    still_refused = ([r for r in refusals if r.get("retry")]
+                     + [r for r in refusals if not r.get("retry")])
+    blocked_by = state.get("blocked_by", {})
+    trace, requests, seen = [], [], set()
+    for ref in still_refused:
+        for m in ref["missing"]:
+            key = (m["capability"], m["data_entity"])
+            if key in seen:
+                continue
+            seen.add(key)
+            n = len(blocked_by.get(m["data_entity"], []))
+            text = await _ask(llm, _ESCALATOR, json.dumps({
+                "data_entity": m["data_entity"], "requesting_capability": m["capability"],
+                "claims_blocked": n, "audit": "Q3 expense claims"}))
+            by_model = bool(text)
+            if not text:
+                text = (f"Close {n} Q3 claims that cannot be verified without "
+                        f"{m['data_entity']}.")
+            requests.append({"capability": m["capability"],
+                             "data_entity": m["data_entity"], "blocking": n,
+                             "reason": text[:1500], "asked_for_by": AGENT_ID})
+            trace.append(_event(t0, "escalate", f"Grant request drafted for "
+                                f"{m['data_entity']} ({n} claims blocked)",
+                                data_entity=m["data_entity"], blocking=n,
+                                reason=text[:1500], by_model=by_model))
+    record = [{"callee": r["callee"], "purpose": r["purpose"],
+               "entities": r["entities"], "outcome": "refused"} for r in still_refused]
+    return {"grant_requests": requests,
+            "blocked_entities": sorted({m["data_entity"] for r in still_refused
+                                        for m in r["missing"]}),
+            "results": [{"replan": record}], "trace": trace}
+
+
+async def report(state: AuditState, runtime: Runtime[Ctx]) -> dict:
+    total = len(state["claims"])
+    closed, flagged = state.get("closed", []), state.get("flagged", [])
+    unresolved = state.get("unresolved", [])
+    reqs = state.get("grant_requests", [])
+    at_risk = sum(f["amount"] for f in flagged)
+    facts = {"claims": total, "verified": len(closed),
+             "flagged": [{"claim": f["claim"], "issue": f["detail"],
+                          "amount": f"{CURRENCY}{f['amount']:,.2f}"} for f in flagged],
+             "amount_under_query": f"{CURRENCY}{at_risk:,.2f}",
+             "could_not_check": len(unresolved),
+             "blocked_on": [{"data": r["data_entity"], "claims": r["blocking"]}
+                            for r in reqs]}
+    headline = (f"Q3 audit: {len(closed)} of {total} claims verified, "
+                f"{len(flagged)} flagged ({CURRENCY}{at_risk:,.2f} under query)")
+    if unresolved:
+        headline += f", {len(unresolved)} could not be checked"
+    lines = [headline + "."]
+    lines += [f"- {f['claim']}: {f['detail']}" for f in flagged]
+    lines += [f"Grant request: {r['capability']} -> {r['data_entity']} "
+              f"({r['blocking']} claims blocked)" for r in reqs]
+    narrative = await _ask(runtime.context.llm, _REPORTER, json.dumps(facts))
+    event = _event(state["t0"], "report", narrative or headline, facts=facts,
+                   by_model=bool(narrative))
+    return {"report": "\n".join(lines), "summary": narrative or "", "trace": [event]}
 
 
 # ---------------------------------------------------------------- the graph
 
-def build_graph(call_fn: CallFn, llm: LLM | None = None,
-                on_event: Callable[[dict], None] | None = None) -> Any:
-    """`call_fn(callee, purpose) -> GovernedResult` and `llm(system, user,
-    schema) -> str` are injected, so the graph runs against the real plane and
-    real inference in the console, and against stubs in tests."""
-    t0 = time.perf_counter()
-
-    # One log for the whole run. Events used to be appended to a copy of
-    # state["trace"]; that is fine sequentially and silently drops events once
-    # requests run concurrently, because each call copies the same base list.
-    log: list[dict] = []
-
-    def ev(state: AuditState, kind: str, text: str, **data) -> list[dict]:
-        event = {"t": round((time.perf_counter() - t0) * 1000), "kind": kind,
-                 "text": text, **({"data": data} if data else {})}
-        log.append(event)
-        if on_event is not None:
-            on_event(event)          # live stream to the console
-        return list(log)
-
-    async def ask(system: str, user: str, schema: dict | None = None) -> str | None:
-        if llm is None:
-            return None
-        try:
-            out = await llm(system, user, schema)
-            return out.strip() if out and out.strip() else None
-        except Exception:
-            return None              # every model step has a deterministic fallback
-
-    async def call(state: AuditState, step: dict, results: list, gathered: dict,
-                   refusals: list, label: str = "call") -> AuditState:
-        r: GovernedResult = await call_fn(step["callee"], step["purpose"])
-        results.append({"callee": step["callee"], "purpose": step["purpose"],
-                        "granted": r.granted, "entities": r.entities,
-                        "served_by": r.served_by, "retry": label == "retry"})
-        if r.granted:
-            rows = (r.data or {}).get("rows", {}) if isinstance(r.data, dict) else {}
-            gathered.update(rows)
-            return {"trace": ev(state, "granted",
-                                f"{step['callee']} granted {', '.join(r.entities)}",
-                                callee=step["callee"], purpose=step["purpose"],
-                                entities=r.entities, warrant=r.warrant_id,
-                                served_by=r.served_by, retry=label == "retry")}
-        refusals.append({"callee": step["callee"], "purpose": step["purpose"],
-                         "entities": r.entities, "missing": r.missing_grants,
-                         "justification": r.justification, "retry": label == "retry"})
-        return {"trace": ev(state, "refused",
-                            f"{step['callee']} refused: no grant to "
-                            + ", ".join(m["data_entity"] for m in r.missing_grants),
-                            callee=step["callee"], purpose=step["purpose"],
-                            entities=r.entities, missing=r.missing_grants,
-                            justification=r.justification, served_by=r.served_by,
-                            retry=label == "retry")}
-
-    async def plan(state: AuditState) -> AuditState:
-        from .fixtures import CLAIMS
-        s: AuditState = {"claims": CLAIMS, "results": [], "gathered": {},
-                         "refusals": [], "grant_requests": [], "trace": []}
-        s["trace"] = ev(s, "start", f"Audit Q3 expense claims - {_claims_digest(CLAIMS)}")
-        prompt = json.dumps({"task": "Audit Q3 expense claims",
-                             "claims": _claims_digest(CLAIMS),
-                             "directory": _directory()})
-        steps, source, rationale, why_fallback = [], "fallback", "", ""
-        # Two attempts. Measured against live Nemotron Super, roughly one plan
-        # in five came back as valid JSON with an empty steps list; a second
-        # ask almost always succeeds, and costs one call only when needed.
-        for _attempt in range(2 if llm is not None else 0):
-            raw = await ask(_PLANNER, prompt, _PLAN_SCHEMA)
-            if not raw:
-                why_fallback = "no response from the model"
-                continue
-            try:
-                parsed = json.loads(raw)
-            except json.JSONDecodeError:
-                why_fallback = "model plan was not valid JSON"
-                continue
-            steps = _valid_plan(parsed) if isinstance(parsed, dict) else []
-            if steps:
-                rationale = str(parsed.get("rationale", ""))[:400]
-                source, why_fallback = "model", ""
-                break
-            why_fallback = "model plan named no usable requests"
-        if not steps:
-            steps = FALLBACK_PLAN
-            if llm is None:
-                why_fallback = "no model configured"
-        s.update(plan=steps, plan_source=source, rationale=rationale)
-        s["trace"] = ev(s, "plan", f"Planned {len(steps)} requests"
-                        + (" (Nemotron)" if source == "model"
-                           else f" (fallback plan: {why_fallback})"),
-                        steps=steps, rationale=rationale, source=source,
-                        why_fallback=why_fallback)
-        return s
-
-    async def gather(state: AuditState) -> AuditState:
-        """All planned requests at once. They are independent, each costs two
-        model calls (classify, justify), and sequentially a 4-request plan spent
-        most of the run waiting. Results land in whatever order WARRANT answers."""
-        results, gathered, refusals = [], dict(state["gathered"]), []
-        s = dict(state)
-        await asyncio.gather(*(call(s, step, results, gathered, refusals)
-                               for step in state["plan"]))
-        return {"results": results, "gathered": gathered, "refusals": refusals,
-                "trace": list(log)}
-
-    async def reconcile(state: AuditState) -> AuditState:
-        a = audit_claims(state["claims"], state["gathered"])
-        s = dict(state)
-        for f in a["flagged"]:
-            s["trace"] = ev(s, "finding", f"{f['claim']}: {f['detail']}", finding=f)
-        s["trace"] = ev(s, "reconciled",
-                        f"{len(a['closed'])} verified, {len(a['flagged'])} flagged, "
-                        f"{len(a['unresolved'])} could not be checked",
-                        closed=len(a["closed"]), flagged=len(a["flagged"]),
-                        blocked={k: len(v) for k, v in a["blocked_by"].items()})
-        return {**a, "trace": s["trace"]}
-
-    def _unasked_gaps(state: AuditState) -> list[str]:
-        """Entities that block claims but that the agent never requested at all.
-        A plan can simply forget a kind of data; without this, the claims that
-        needed it would end the run unchecked and nobody would be asked."""
-        requested = set(state.get("gathered", {}))
-        for r in state.get("refusals", []):
-            requested |= set(r["entities"])
-        return [e for e in state.get("blocked_by", {}) if e not in requested]
-
-    def route(state: AuditState) -> str:
-        return "replan" if (state.get("refusals") or _unasked_gaps(state)) else "report"
-
-    async def replan(state: AuditState) -> AuditState:
-        s = dict(state)
-        results = list(state["results"])
-        gathered = dict(state["gathered"])
-        still_refused: list[dict] = []
-
-        # 0. Fill gaps: claims blocked on data the plan never asked for.
-        holders = {e: d["agent"] for d in _directory() for e in d["holds"]}
-        for entity in _unasked_gaps(state):
-            callee = holders.get(entity)
-            if not callee:
-                continue
-            n = len(state["blocked_by"].get(entity, []))
-            purpose = await ask(_GAP_FILLER, json.dumps(
-                {"data_needed": entity, "claims_waiting": n, "audit": "Q3 expense claims"}))
-            by_model = bool(purpose)
-            if not purpose:
-                purpose = f"{entity} to verify {n} Q3 claims that cannot be checked without it"
-            s["trace"] = ev(s, "replan",
-                            f"{n} claims could not be checked: requesting {entity} "
-                            f"from {callee}", gap=entity, new_purpose=purpose,
-                            by_model=by_model)
-            gap_refusals: list[dict] = []
-            s.update(await call(s, {"callee": callee, "purpose": purpose},
-                                results, gathered, gap_refusals, label="retry"))
-            still_refused.extend(gap_refusals)
-
-        # 1. Narrow: a refused request that also touched permitted data is
-        #    reissued asking only for the permitted part.
-        for ref in state["refusals"]:
-            refused = {m["data_entity"] for m in ref["missing"]}
-            permitted = [e for e in ref["entities"] if e not in refused]
-            if permitted and not ref.get("retry"):
-                purpose = await ask(_NARROWER, json.dumps(
-                    {"original_purpose": ref["purpose"], "permitted_data": permitted}))
-                narrowed_by_model = bool(purpose)
-                if not purpose:
-                    purpose = f"{', '.join(permitted)} needed for the Q3 expense audit"
-                s["trace"] = ev(s, "replan",
-                                f"Narrowing request to {ref['callee']}: ask only for "
-                                f"{', '.join(permitted)}", refused=sorted(refused),
-                                permitted=permitted, new_purpose=purpose,
-                                by_model=narrowed_by_model)
-                retry_refusals: list[dict] = []
-                s.update(await call(s, {"callee": ref["callee"], "purpose": purpose},
-                                    results, gathered, retry_refusals, label="retry"))
-                still_refused.extend(retry_refusals)
-            still_refused.append(ref)
-
-        # 2. Re-audit with whatever the narrowed requests recovered.
-        a = audit_claims(state["claims"], gathered)
-        newly = [f for f in a["flagged"]
-                 if f["claim"] not in {x["claim"] for x in state.get("flagged", [])}]
-        for f in newly:
-            s["trace"] = ev(s, "finding", f"{f['claim']}: {f['detail']}", finding=f)
-
-        # 3. Escalate what is still blocked, addressed to whoever can grant it.
-        blocked_entities = sorted({m["data_entity"] for r in still_refused
-                                   for m in r["missing"]})
-        requests, seen = [], set()
-        for ref in still_refused:
-            for m in ref["missing"]:
-                key = (m["capability"], m["data_entity"])
-                if key in seen:
-                    continue
-                seen.add(key)
-                n = len(a["blocked_by"].get(m["data_entity"], []))
-                text = await ask(_ESCALATOR, json.dumps({
-                    "data_entity": m["data_entity"], "requesting_capability": m["capability"],
-                    "claims_blocked": n, "audit": "Q3 expense claims"}))
-                by_model = bool(text)
-                if not text:
-                    text = (f"Close {n} Q3 claims that cannot be verified without "
-                            f"{m['data_entity']}.")
-                requests.append({"capability": m["capability"],
-                                 "data_entity": m["data_entity"], "blocking": n,
-                                 "reason": text[:1500], "asked_for_by": AGENT_ID})
-                s["trace"] = ev(s, "escalate",
-                                f"Grant request drafted for {m['data_entity']} "
-                                f"({n} claims blocked)", data_entity=m["data_entity"],
-                                blocking=n, reason=text[:1500], by_model=by_model)
-
-        # 4. Record, so the next run does not retry the refused path blind.
-        record = [{"callee": r["callee"], "purpose": r["purpose"],
-                   "entities": r["entities"], "outcome": "refused"}
-                  for r in still_refused]
-        return {**a, "results": results + [{"replan": record}], "gathered": gathered,
-                "grant_requests": requests, "blocked_entities": blocked_entities,
-                "trace": s["trace"]}
-
-    async def report(state: AuditState) -> AuditState:
-        total = len(state["claims"])
-        closed, flagged = state.get("closed", []), state.get("flagged", [])
-        unresolved = state.get("unresolved", [])
-        reqs = state.get("grant_requests", [])
-        at_risk = sum(f["amount"] for f in flagged)
-        facts = {"claims": total, "verified": len(closed),
-                 "flagged": [{"claim": f["claim"], "issue": f["detail"],
-                              "amount": f"{CURRENCY}{f['amount']:,.2f}"} for f in flagged],
-                 "amount_under_query": f"{CURRENCY}{at_risk:,.2f}",
-                 "could_not_check": len(unresolved),
-                 "blocked_on": [{"data": r["data_entity"], "claims": r["blocking"]}
-                                for r in reqs]}
-        headline = (f"Q3 audit: {len(closed)} of {total} claims verified, "
-                    f"{len(flagged)} flagged ({CURRENCY}{at_risk:,.2f} under query)")
-        if unresolved:
-            headline += f", {len(unresolved)} could not be checked"
-        lines = [headline + "."]
-        lines += [f"- {f['claim']}: {f['detail']}" for f in flagged]
-        lines += [f"Grant request: {r['capability']} -> {r['data_entity']} "
-                  f"({r['blocking']} claims blocked)" for r in reqs]
-        narrative = await ask(_REPORTER, json.dumps(facts))
-        s = dict(state)
-        s["trace"] = ev(s, "report", narrative or headline, facts=facts,
-                        by_model=bool(narrative))
-        return {"report": "\n".join(lines), "summary": narrative or "",
-                "trace": s["trace"]}
-
-    g = StateGraph(AuditState)
-    for name, fn in (("plan", plan), ("gather", gather), ("reconcile", reconcile),
-                     ("replan", replan), ("report", report)):
-        g.add_node(name, fn)
-    g.set_entry_point("plan")
+@cache
+def build_graph() -> Any:
+    """The compiled auditor. It holds no per-run state, so it is built once and
+    reused: run it with `ainvoke({"claims": ...}, context=Ctx(call_fn, llm))`,
+    or `astream(..., stream_mode=["custom", "values"])` for live events."""
+    g = StateGraph(AuditState, context_schema=Ctx,
+                   input_schema=AuditInput, output_schema=AuditOutput)
+    g.add_node("plan", plan)
+    g.add_node("gather", gather)
+    g.add_node("reconcile", reconcile)
+    g.add_node("replan", replan, destinations=("gather", "escalate"))
+    g.add_node("escalate", escalate)
+    g.add_node("report", report)
+    g.add_edge(START, "plan")
     g.add_edge("plan", "gather")
     g.add_edge("gather", "reconcile")
-    g.add_conditional_edges("reconcile", route, {"replan": "replan", "report": "report"})
-    g.add_edge("replan", "report")
+    g.add_conditional_edges("reconcile", route)
+    g.add_edge("escalate", "report")
     g.add_edge("report", END)
     return g.compile()
-

@@ -7,7 +7,7 @@ seam is covered by test_no_bypass.py and live inference by evals/.
 from __future__ import annotations
 
 from warrant.agents import fixtures as F
-from warrant.agents.auditor import audit_claims, build_graph
+from warrant.agents.auditor import Ctx, audit_claims, build_graph
 from warrant.agents.base import GovernedResult
 
 COMP = "Employee.Compensation"
@@ -37,8 +37,12 @@ def _call_fn(refuse_compensation: bool = True, bundle_roster_with_comp: bool = F
     return call
 
 
+async def _audit(call_fn, llm=None) -> dict:
+    return await build_graph().ainvoke({}, context=Ctx(call_fn, llm))
+
+
 async def _run(**kw) -> dict:
-    return await build_graph(_call_fn(**kw)).ainvoke({})
+    return await _audit(_call_fn(**kw))
 
 
 def _flagged(s) -> set[str]:
@@ -136,7 +140,7 @@ async def test_trace_tells_the_story_in_order():
 async def test_a_bad_model_plan_falls_back_rather_than_failing():
     async def junk_llm(system, user, schema=None):
         return '{"steps": [{"callee": "nonexistent-agent", "purpose": "x", "why": "y"}], "rationale": "r"}'
-    s = await build_graph(_call_fn(), llm=junk_llm).ainvoke({})
+    s = await _audit(_call_fn(), junk_llm)
     assert s["plan_source"] == "fallback"
     assert len(s["flagged"]) == 3
 
@@ -144,7 +148,7 @@ async def test_a_bad_model_plan_falls_back_rather_than_failing():
 async def test_a_failing_model_never_breaks_the_audit():
     async def broken_llm(system, user, schema=None):
         raise RuntimeError("tier down")
-    s = await build_graph(_call_fn(), llm=broken_llm).ainvoke({})
+    s = await _audit(_call_fn(), broken_llm)
     assert len(s["closed"]) == 38 and s["report"]
 
 
@@ -157,7 +161,7 @@ async def test_a_model_plan_is_used_when_valid():
                 {"callee": "roster-planner", "purpose": "travel roster dates", "why": "b"},
                 {"callee": "roster-planner", "purpose": "compensation bands", "why": "c"}]})
         return "model text"
-    s = await build_graph(_call_fn(), llm=llm).ainvoke({})
+    s = await _audit(_call_fn(), llm)
     assert s["plan_source"] == "model" and s["rationale"] == "split by data type"
     assert s["summary"] == "model text"
 
@@ -196,7 +200,7 @@ async def test_a_plan_that_forgets_some_data_is_caught_and_asked_for():
                 {"callee": "inventory-reconciler", "purpose": "supplier contract rates", "why": "a"},
                 {"callee": "roster-planner", "purpose": "travel roster dates", "why": "b"}]})
         return None
-    s = await build_graph(_call_fn(), llm=forgetful_llm).ainvoke({})
+    s = await _audit(_call_fn(), forgetful_llm)
     kinds = [e["kind"] for e in s["trace"]]
     assert "replan" in kinds, "the gap was never noticed"
     gap = [e for e in s["trace"] if e["kind"] == "replan" and e.get("data", {}).get("gap")]
@@ -215,7 +219,66 @@ async def test_concurrent_requests_lose_no_events():
     async def slow(callee, purpose):
         await _a.sleep(next((d for k, d in delays.items() if k in purpose.lower()), 0.02))
         return await base(callee, purpose)
-    s = await build_graph(slow).ainvoke({})
+    s = await _audit(slow)
     outcomes = [e for e in s["trace"] if e["kind"] in ("granted", "refused")]
     assert len(outcomes) == len(s["plan"]), [e["text"] for e in outcomes]
     assert len(s["flagged"]) == 3
+
+
+def test_missing_reference_data_is_a_query_not_a_pass():
+    # A claim whose employee has no band, or whose supplier has no contract,
+    # used to count as verified. Missing data is something to query.
+    from warrant.agents.auditor import audit_claims
+    claims = [
+        {"id": "X-1", "type": "allowance", "employee_id": "E-NOBAND", "amount": 90.0},
+        {"id": "X-2", "type": "supplier", "supplier_id": "S-NONE", "supplier": "Nobody Ltd",
+         "employee_id": "E-1", "date": "2026-07-01", "amount": 50.0},
+    ]
+    a = audit_claims(claims, {"Employee.Compensation": {}, "Supplier.Contract": {}})
+    kinds = {f["claim"]: f["kind"] for f in a["flagged"]}
+    assert kinds == {"X-1": "no-band", "X-2": "no-contract"}
+
+
+async def test_the_replan_loop_runs_one_retry_pass_and_stops():
+    """Every request, narrowed or not, comes back refused with a permitted part.
+    The agent narrows once, goes back through gather once, then escalates: the
+    bound is the attempt counter, not LangGraph's recursion limit."""
+    from warrant.agents.auditor import FALLBACK_PLAN
+    calls = []
+
+    async def always_bundled(callee, purpose):
+        calls.append(purpose)
+        return GovernedResult(granted=False, warrant_id="wX",
+                              entities=["Employee.Roster", COMP], missing_grants=REFUSAL)
+    nodes, s = [], {}
+    async for mode, chunk in build_graph().astream(
+            {}, context=Ctx(always_bundled), stream_mode=["updates", "values"]):
+        if mode == "updates":
+            nodes += list(chunk)
+        else:
+            s = chunk
+    assert nodes == ["plan", "gather", "reconcile", "replan", "gather", "reconcile",
+                     "escalate", "report"]
+    # one retry each: three narrowed, plus the never-requested Supplier.Contract gap
+    replans = [e for e in s["trace"] if e["kind"] == "replan"]
+    assert len(replans) == len(FALLBACK_PLAN) + 1
+    assert len(calls) == len(FALLBACK_PLAN) + len(replans)
+    assert sum(r.get("retry", False) for r in s["results"]) == len(replans)
+    assert s["attempt"] == 1 and len(s["grant_requests"]) == 1
+
+
+async def test_a_call_that_raises_is_a_refusal_not_a_crash():
+    base = _call_fn()
+
+    async def flaky(callee, purpose):
+        if "roster" in purpose.lower():
+            raise RuntimeError("roster-planner unreachable")
+        return await base(callee, purpose)
+    s = await _audit(flaky)
+    errors = [e for e in s["trace"] if e["kind"] == "refused" and e["data"].get("error")]
+    assert errors and "unreachable" in errors[0]["data"]["error"]
+    # the sibling requests still landed, and the audit carried on without the roster
+    assert any(e["kind"] == "granted" for e in s["trace"])
+    assert {"CLM-3141", F.OVER_CONTRACT} <= _flagged(s) and s["report"]
+    assert F.PHANTOM_TRIP not in _flagged(s)
+    assert len(s["grant_requests"]) == 1          # compensation, as before

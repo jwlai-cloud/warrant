@@ -113,7 +113,7 @@ def _take_live_run() -> bool:
     the hard limit behind this one."""
     if not _judge_key():
         return True
-    today = datetime.date.today().isoformat()
+    today = datetime.date.today().isoformat()  # noqa: DTZ011 - the server's day
     used = _live_runs.get(today, 0)
     if used >= _live_cap():
         return False
@@ -127,7 +127,7 @@ async def access(request: Request):
     """Which mode the console should start in: live (judge, or no key
     configured) or replay. Says nothing about the key beyond yes or no."""
     live = _is_judge(_supplied_key(request))
-    left = (max(0, _live_cap() - _live_runs.get(datetime.date.today().isoformat(), 0))
+    left = (max(0, _live_cap() - _live_runs.get(datetime.date.today().isoformat(), 0))  # noqa: DTZ011
             if _judge_key() else None)
     return {"live": live, "key_required": bool(_judge_key()), "runs_left_today": left,
             "replay": _REPLAY}
@@ -338,6 +338,7 @@ async def _steward_review(gr_id: str, on_event=None) -> dict | None:
 # One run at a time. Every run spends real Token Factory credit and the hosted
 # demo is public, so parallel clicks (or a script) must not multiply the bill.
 _RUN_LOCK = asyncio.Lock()
+_stream_task: asyncio.Task | None = None
 
 
 async def _run_auditor(on_event=None) -> dict:
@@ -349,7 +350,7 @@ async def _run_auditor(on_event=None) -> dict:
     services running. scripts/smoke_topology.sh covers the cross-process path.
     """
     assert _svc is not None
-    from ..agents.auditor import build_graph
+    from ..agents.auditor import Ctx, build_graph
     from ..agents.base import GovernedResult
     from ..agents.fixtures import DATASETS
 
@@ -384,8 +385,16 @@ async def _run_auditor(on_event=None) -> dict:
 
     # The agent plans, narrows and reports with the deep tier. On the offline
     # profile that tier is a stub that cannot plan, so the graph uses its
-    # deterministic fallbacks instead of narrating canned text.
-    state = await build_graph(call_fn, llm=_llm(), on_event=emit).ainvoke({})
+    # deterministic fallbacks instead of narrating canned text. Each event
+    # arrives on the custom stream as the node emits it; `values` carries the
+    # state, of which only the output keys are read below.
+    state: dict = {}
+    async for mode, chunk in build_graph().astream(
+            {}, context=Ctx(call_fn, _llm()), stream_mode=["custom", "values"]):
+        if mode == "custom":
+            emit(chunk)
+        else:
+            state = chunk
 
     # The escalate branch, made durable: what the agent drafted becomes a real
     # request a steward can act on.
@@ -448,18 +457,26 @@ async def demo_stream():
         return JSONResponse(status_code=429, content={
             "error": "today's live runs are used up", "replay": _REPLAY})
 
+    # Claim the lock now, before the response starts. Nothing above awaits, and
+    # an uncontended acquire does not yield, so a second request arriving at the
+    # same moment sees it held and gets the 429. The run starts here too, and
+    # the lock is released when the run ends however it ends (finished,
+    # failed, cancelled by a disconnect, or cancelled before it ever started).
+    await _RUN_LOCK.acquire()
     queue: asyncio.Queue = asyncio.Queue()
 
     async def worker():
-        async with _RUN_LOCK:
-            try:
-                result = await _run_auditor(on_event=queue.put_nowait)
-                queue.put_nowait({"kind": "done", "result": result})
-            except Exception as exc:         # surface, never hang the stream
-                queue.put_nowait({"kind": "error", "text": f"{type(exc).__name__}: {exc}"})
+        try:
+            result = await _run_auditor(on_event=queue.put_nowait)
+            queue.put_nowait({"kind": "done", "result": result})
+        except Exception as exc:  # noqa: BLE001 - surface, never hang the stream
+            queue.put_nowait({"kind": "error", "text": f"{type(exc).__name__}: {exc}"})
+
+    global _stream_task
+    task = _stream_task = asyncio.create_task(worker())   # held: tasks are weakly referenced
+    task.add_done_callback(lambda _t: _RUN_LOCK.release())
 
     async def events():
-        task = asyncio.create_task(worker())
         try:
             while True:
                 ev = await queue.get()

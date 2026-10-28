@@ -94,3 +94,16 @@ def test_health_has_a_path_cloud_run_does_not_reserve(app_mod):
     # reads /v1/health; on Cloud Run it showed "plane unreachable" otherwise.
     c = TestClient(app_mod.app)
     assert c.get("/v1/health").json()["tiers"] == c.get("/healthz").json()["tiers"]
+
+
+async def test_two_streams_at_once_cannot_both_start(app_mod, monkeypatch):
+    # The lock used to be taken inside the stream's task, after the response
+    # was returned, so two clients arriving together could both pass the check.
+    monkeypatch.setenv("WARRANT_JUDGE_KEY", KEY)
+    first = await app_mod.demo_stream()
+    second = await app_mod.demo_stream()
+    assert first.status_code == 200 and second.status_code == 429
+    assert list(app_mod._live_runs.values()) == [1]       # counted once
+    assert app_mod._RUN_LOCK.locked()
+    await app_mod._stream_task                     # the run finishes, unread...
+    assert not app_mod._RUN_LOCK.locked()          # ...and gives the lock back
