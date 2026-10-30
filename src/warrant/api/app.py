@@ -6,6 +6,11 @@ GET  /v1/grant-requests          - open and decided grant requests
 POST /v1/grant-requests          - a refused agent raises one
 POST /v1/grant-requests/{id}/decision - the steward approves or declines
 POST /v1/demo/run                - run the Expense Auditor against the live plane
+GET  /v1/demo/stream             - the same run as server-sent events (the console)
+POST /v1/demo/reset              - back to the model's own grants, empty audit log
+GET  /v1/scenarios               - the prepared claim sets and the CSV columns
+GET  /v1/workspace               - which claims this browser's audit runs on
+POST /v1/workspace               - choose a scenario or upload claims (CSV)
 GET  /v1/access    - live (judge) or replay; with WARRANT_JUDGE_KEY set, every
                      POST and the live stream need the key
 GET  /v1/audit     - the decision log

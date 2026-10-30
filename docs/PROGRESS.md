@@ -39,6 +39,9 @@ stay shared. The step bar and tour appear only in the guided demo. The
 fallback plan now asks only for the data the loaded claims need.
 `scripts/e2e_console.py` drives every section in Chrome (42 checks: judge,
 stranger, local dev, daily cap). 115 tests.
+The top bar and sidebar now name all three tiers (the grant table decides,
+Nano classifies, Super plans and explains, Ultra reviews) instead of showing
+only the fast tier's config.
 
 ### Ask WARRANT (2026-10-29/30)
 Judges could only replay the audit story, live or recorded. A new console view

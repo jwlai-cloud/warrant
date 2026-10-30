@@ -120,6 +120,21 @@ deleting it revokes every live warrant.
 
 **`warrant.cli`** — `ask`, `log`, `validate`, `serve`.
 
+**`warrant.agents.claims`** — Finance's own data: the claims an audit runs on.
+Three prepared scenarios (Northwind Q3, the guided demo; a supplier spend review
+that needs no restricted data; travel and allowances) and a CSV parser for a
+fixed format (id, employee_id, date, type, supplier_id, supplier, category,
+description, amount; 300 rows, 100 KB, plain-text free fields). Only counts and
+the category reach a model prompt. Uploads are claims only by design: the other
+departments' data stays theirs, reachable only through WARRANT.
+
+**Console entry.** With a judges' key configured, a visitor chooses the claims
+first (`/v1/workspace`, per browser by cookie; grants and the audit log stay
+shared, as in one organisation), and the step bar and tour appear only in the
+guided demo. **Ask WARRANT** sends a free-form request through the same
+`POST /v1/warrant` the agents use and can escalate a refusal to the owner.
+Without a key (local dev, the video capture) the console is the demo.
+
 ## Data flow
 
 The flow starts with an agent being given a task, not with an HTTP request
@@ -183,7 +198,7 @@ authorization decision is still auditable.
 |---|---|---|---|
 | Plane + console + the three org agents | One container on **Google Cloud Run** (personal project), `scripts/deploy_cloudrun.py` | Scales to zero; at most one instance | Free tier while idle. A cold start adds a few seconds to the first visit |
 | All three Nemotron tiers | Nebius Token Factory | Managed | Per token. Live runs need the judges' access code and are capped per day; everyone else gets the recorded live run (`static/replay.json`) played in their browser |
-| Audit log, grants, approvals | Memory and JSONL in the container | — | Reset on restart, which is also what the console's Reset does. A demo, not a deployment |
+| Claims per browser (workspace), audit log, grants, approvals | Memory and JSONL in the container | — | Reset on restart, which is also what the console's Reset does. A demo, not a deployment |
 
 One instance at most, because that state is in memory: a second instance would
 disagree with the first. Nebius was the intended host; it refused every resource

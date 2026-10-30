@@ -245,6 +245,7 @@ warrant validate
 warrant ask expense-auditor roster-planner -p "verify allowance claims against compensation bands"
 warrant log
 pytest -q
+python scripts/e2e_console.py   # the console in Chrome: 42 checks (needs playwright)
 ```
 
 Run the whole topology — plane, console and both serving agents, one command:
