@@ -24,6 +24,7 @@ nvidia-nemotron · nebius-token-factory · python · fastapi · langgraph · mcp
 5. `05-found.png` — The overpayment nobody could see.
 6. `06-matrix.png` — Rights are explicit.
 7. `07-audit.png` — Every decision on the record.
+8. `08-ask.png` — Ask WARRANT yourself: your own request, decided live.
 
 ---
 
@@ -69,8 +70,10 @@ demo's agents call WARRANT over HTTP; it also ships an MCP server (three
 tools: `request_warrant`, `list_my_access`, `raise_grant_request`), so any MCP
 agent, such as Claude Desktop or another team's, can ask it for a warrant too.
 
-**Try it:** the hosted console opens on a landing page with a guided tour (ten
-steps; you do the clicks). Without an access code it plays back a real recorded
+**Try it:** the hosted console opens on a landing page with two ways in: a
+guided tour of the audit story (ten steps; you do the clicks), or **Ask
+WARRANT**, where you pick the agents, write any purpose in your own words, and
+WARRANT decides it live, with the option to ask the data's owner if refused. Without an access code it plays back a real recorded
 live run in your browser. The judges' link in this submission runs Nemotron
 live. It is hosted on Cloud Run scaled to zero, so if it has been idle the first
 visit takes a few seconds longer.
@@ -93,7 +96,7 @@ visit takes a few seconds longer.
 - **One client, any tier.** One OpenAI-compatible client serves Token Factory
   and self-hosted vLLM; which model serves a job is one line of config, with a
   fallback when a tier is unreachable.
-- **Rigor.** 102 tests. An adversarial review of our own code: 40 confirmed
+- **Rigor.** 103 tests. An adversarial review of our own code: 40 confirmed
   findings, all fixed. A classifier eval that reports recall first, because a
   missed entity is a security failure and an extra one is only an inconvenience.
 
@@ -141,6 +144,8 @@ visit takes a few seconds longer.
 - Ingest the architecture model from an EA tool instead of hand-authored YAML.
 - Row-level, purpose-limited and time-boxed grants.
 - Signed, single-use warrants a data agent can verify without calling the plane.
+- Bring your own data: upload claims (CSV) for an audit, and a persistent store
+  for grants and the audit log (the graph already takes claims as input).
 - Per-run cost receipts by model size.
 
 ---

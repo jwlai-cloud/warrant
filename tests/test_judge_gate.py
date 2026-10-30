@@ -51,6 +51,7 @@ def test_key_configured_blocks_spending_routes(app_mod, monkeypatch):
         assert r.json()["replay"] == "/static/replay.json"
     assert c.get("/v1/access").json() == {"live": False, "key_required": True,
                                           "runs_left_today": 40,
+                                          "asks_left_today": 200,
                                           "replay": "/static/replay.json"}
     # a stranger still gets the whole console, in replay
     assert c.get("/v1/model").status_code == 200
@@ -107,3 +108,19 @@ async def test_two_streams_at_once_cannot_both_start(app_mod, monkeypatch):
     assert app_mod._RUN_LOCK.locked()
     await app_mod._stream_task                     # the run finishes, unread...
     assert not app_mod._RUN_LOCK.locked()          # ...and gives the lock back
+
+
+def test_free_form_requests_have_their_own_daily_cap(app_mod, monkeypatch):
+    # Ask WARRANT: a judge's own request is live (2 model calls), so it is
+    # capped too, separately from full audit runs.
+    monkeypatch.setenv("WARRANT_JUDGE_KEY", KEY)
+    monkeypatch.setenv("WARRANT_ASK_DAILY_CAP", "1")
+    c = TestClient(app_mod.app)
+    h = {"X-Warrant-Key": KEY}
+    first = c.post("/v1/warrant", json=WARRANT, headers=h)
+    assert first.status_code in (200, 403)
+    assert {"model", "latency_ms"} <= set(first.json()["served_by"])
+    second = c.post("/v1/warrant", json=WARRANT, headers=h)
+    assert second.status_code == 429 and "used up" in second.json()["error"]
+    left = c.get("/v1/access", headers=h).json()
+    assert left["asks_left_today"] == 0 and left["runs_left_today"] == 40

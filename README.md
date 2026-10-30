@@ -33,6 +33,14 @@ announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 ## What it does
 
+**Two ways in.** The guided demo walks the Q3 audit story end to end. **Ask
+WARRANT** lets you pick any requesting agent and any data-holding agent, write
+the purpose in your own words, and see WARRANT decide it live: what Nemotron
+Nano says the request touches, the grant table's decision and reasons, and
+Super's explanation. If you're refused, ask the data's owner: the Steward Agent
+(Ultra) reviews it, you approve it in Approvals, and the same request is then
+granted.
+
 **Live demo:** without an access code, the hosted console plays back a real
 recorded live run in your own browser (no model calls, nothing shared), so
 anyone can click through it. Running Nemotron live needs the judges' access
@@ -339,6 +347,16 @@ Named so a judge doesn't have to find it:
   until it expires. Signed, single-use warrants are the next step.
 - **The thinking budget is a no-op on Token Factory.** It binds on vLLM only;
   on the managed tiers `max_tokens` is the real bound.
+
+## What's next
+
+- **Bring your own data.** Upload claims (CSV) and run the audit on them; the
+  graph already takes `claims` as input. Then a persistent store for grants and
+  the audit log, and per-visitor state instead of one shared demo.
+- **Signed, single-use warrants** a data agent can verify without calling the
+  plane.
+- **The org model from an EA tool** (LeanIX and similar) instead of YAML.
+- **Transitive delegation** (A → B → C) and A2A as the transport.
 
 ## Prior art this builds on and does not duplicate
 

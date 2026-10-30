@@ -93,11 +93,12 @@ async def judge_gate(request: Request, call_next):
             "error": "judge access code required", "replay": _REPLAY})
     response = await call_next(request)
     if _judge_key() and judge and request.query_params.get("key"):
-        # Behind HTTPS (the Space) the cookie is SameSite=None so it also works
-        # inside huggingface.co's iframe; plain http (local) cannot use None.
+        # SameSite=Lax: another site cannot make a judge's browser send this
+        # cookie on a cross-site POST (e.g. a body-less /v1/demo/run), so the
+        # cookie can't be used to spend live runs. Secure behind HTTPS.
         https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
         response.set_cookie(_COOKIE, request.query_params["key"], max_age=60 * 86400,
-                            httponly=True, secure=https, samesite="none" if https else "lax")
+                            httponly=True, secure=https, samesite="lax")
     return response
 
 
@@ -105,20 +106,35 @@ def _live_cap() -> int:
     return int(os.environ.get("WARRANT_LIVE_DAILY_CAP", "40"))
 
 
-def _take_live_run() -> bool:
-    """Count a live run against today's cap. A backstop if the judge code leaks:
-    the worst case is a fixed number of runs a day, not an open meter.
+def _ask_cap() -> int:
+    # A free-form request (Ask WARRANT) is 2 model calls, a full audit run ~15,
+    # so asks get their own, larger allowance.
+    return int(os.environ.get("WARRANT_ASK_DAILY_CAP", "200"))
+
+
+def _left(kind: str = "run") -> int | None:
+    if not _judge_key():
+        return None
+    today = datetime.date.today().isoformat()  # noqa: DTZ011 - the server's day
+    cap = _live_cap() if kind == "run" else _ask_cap()
+    return max(0, cap - _live_runs.get(f"{today}:{kind}", 0))
+
+
+def _take_live_run(kind: str = "run") -> bool:
+    """Count a live run ("run") or a free-form request ("ask") against today's
+    cap. A backstop if the judge code leaks: the worst case is a fixed number of
+    model calls a day, not an open meter.
 
     ponytail: in-memory, so a restart resets it; the Token Factory spend cap is
     the hard limit behind this one."""
     if not _judge_key():
         return True
     today = datetime.date.today().isoformat()  # noqa: DTZ011 - the server's day
-    used = _live_runs.get(today, 0)
-    if used >= _live_cap():
+    if not _left(kind):
         return False
-    _live_runs.clear()
-    _live_runs[today] = used + 1
+    for stale in [k for k in _live_runs if not k.startswith(today)]:
+        del _live_runs[stale]
+    _live_runs[f"{today}:{kind}"] = _live_runs.get(f"{today}:{kind}", 0) + 1
     return True
 
 
@@ -127,10 +143,8 @@ async def access(request: Request):
     """Which mode the console should start in: live (judge, or no key
     configured) or replay. Says nothing about the key beyond yes or no."""
     live = _is_judge(_supplied_key(request))
-    left = (max(0, _live_cap() - _live_runs.get(datetime.date.today().isoformat(), 0))  # noqa: DTZ011
-            if _judge_key() else None)
-    return {"live": live, "key_required": bool(_judge_key()), "runs_left_today": left,
-            "replay": _REPLAY}
+    return {"live": live, "key_required": bool(_judge_key()), "runs_left_today": _left("run"),
+            "asks_left_today": _left("ask"), "replay": _REPLAY}
 
 
 @app.get("/", include_in_schema=False)
@@ -192,9 +206,13 @@ async def request_warrant(body: WarrantIn, authorization: str | None = Header(No
     caller = _resolve_caller(body.caller_agent, authorization)
     if isinstance(caller, JSONResponse):
         return caller
+    if not _take_live_run("ask"):
+        return JSONResponse(status_code=429, content={
+            "error": "today's live requests are used up", "replay": _REPLAY})
     req = body.model_dump()
     req["caller_agent"] = caller
     d = await _svc.evaluate(WarrantRequest(**req))
+    tiers = _svc.config.tiers
     return JSONResponse(
         status_code=200 if d.granted else 403,
         content={
@@ -208,8 +226,11 @@ async def request_warrant(body: WarrantIn, authorization: str | None = Header(No
                                for c, e in d.missing_grants],
             "reasons": [{"code": r.code, "detail": r.detail} for r in d.reasons],
             "served_by": {"tier": d.tier_used, "provider": d.provider_kind,
+                          "model": tiers[d.tier_used].model if d.tier_used in tiers else "",
                           "latency_ms": round(d.latency_ms, 2)},
             "explained_by": {"tier": d.justify_tier, "provider": d.justify_provider,
+                             "model": (tiers[d.justify_tier].model
+                                       if d.justify_tier in tiers else ""),
                              "latency_ms": round(d.justify_ms, 2)},
             "issued_at": d.issued_at,
             "expires_at": d.expires_at,
@@ -264,8 +285,11 @@ async def list_grant_requests():
 
 @app.post("/v1/grant-requests")
 async def raise_grant_request(body: GrantRequestIn):
-    """Raised by a refused agent's replan step."""
+    """Raised by a refused agent's replan step, or by a judge from Ask WARRANT."""
     assert _svc is not None
+    if not _take_live_run("ask"):
+        return JSONResponse(status_code=429, content={
+            "error": "today's live requests are used up", "replay": _REPLAY})
     try:
         r = _svc.requests.raise_request(_svc.model, **body.model_dump())
     except ValueError as exc:

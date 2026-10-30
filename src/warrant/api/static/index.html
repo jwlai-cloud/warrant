@@ -375,6 +375,41 @@
 
   body.is-home .shell{grid-template-columns:minmax(0,1fr)}
   body.is-home nav.rail,body.is-home .topbar,body.is-home .stepbar{display:none}
+  body.is-ask .stepbar{display:none}
+  /* ---------- Ask WARRANT ---------- */
+  .ask-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
+  .ask-form{padding:18px 20px;display:grid;gap:14px}
+  .ask-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+  .ask-row .arrow{font:700 18px/1 var(--mono);color:var(--ink-faint);padding-bottom:12px}
+  .ask-form label{display:block;font:400 12px/1.4 var(--mono);color:var(--ink-faint);margin-bottom:5px}
+  .ask-form select,.ask-form textarea{width:100%;box-sizing:border-box;font:400 15px/1.45 var(--sans);color:var(--ink);
+    background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+  .ask-form textarea{min-height:96px;resize:vertical}
+  .ask-form select:focus-visible,.ask-form textarea:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+  .presets{display:flex;flex-wrap:wrap;gap:8px}
+  .presets button{font:400 13px/1.3 var(--sans);text-align:left;cursor:pointer;color:var(--ink);background:var(--surface);
+    border:1px solid var(--rule);border-radius:8px;padding:8px 10px;max-width:100%}
+  .presets button:hover{border-color:var(--blue)}
+  .presets button b{display:block;font:700 11px/1.3 var(--mono);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em}
+  .ask-go{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .ask-go .left{font:400 12.5px/1.4 var(--mono);color:var(--ink-faint)}
+  .ask-out{padding:18px 20px;display:grid;gap:14px;min-width:0}
+  .ask-empty{color:var(--ink-soft);font-size:15px}
+  .verdict{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 16px;border-radius:10px;border:1px solid var(--rule)}
+  .verdict.ok{background:var(--gold-bg);border-color:var(--gold)}
+  .verdict.bad{background:var(--red-bg);border-color:var(--red)}
+  .verdict b{font:600 30px/1 var(--serif)}
+  .verdict.ok b{color:var(--gold-ink)} .verdict.bad b{color:var(--red-ink)}
+  .verdict .meta{font:400 12.5px/1.4 var(--mono);color:var(--ink-soft);flex:1 1 220px}
+  .ask-sec h3{font:700 11.5px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 6px}
+  .ask-sec ul{margin:0;padding-left:18px;font-size:14.5px}
+  .ask-sec .by{font:400 12px/1.4 var(--mono);color:var(--ink-faint);margin-top:6px}
+  .excl{border-left:4px solid var(--red);background:var(--red-bg);color:var(--red-ink);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14.5px}
+  .owner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border:1px dashed var(--rule);border-radius:10px}
+  .owner p{margin:0;flex:1 1 240px;font-size:14.5px}
+  .ask-lock{padding:18px 20px;display:grid;gap:10px}
+  @media (max-width:980px){.ask-grid{grid-template-columns:1fr}}
+  @media (max-width:520px){.ask-row{grid-template-columns:1fr}.ask-row .arrow{display:none}}
 
   @media (prefers-reduced-motion:reduce){
     ol.timeline>li,.finding,td.cell.busy .mk,td.cell.fresh .mk{animation:none}
@@ -395,7 +430,8 @@
     nav.rail{padding:14px 0 8px}
     .brand{padding:0 16px 10px}
     nav.rail .org,.rail-foot{display:none}
-    .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding:0 8px}
+    nav.rail{min-width:0;max-width:100vw}
+    .navlist{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;padding:0 8px;min-width:0;max-width:100%}
     .navlist button{white-space:nowrap;padding:10px 12px}
     .topbar{padding:12px 16px}
     .view{padding:18px 16px 40px}
@@ -447,7 +483,9 @@
     background:var(--ink);color:var(--cream);font:400 13.5px/1.5 var(--sans);text-align:left;
     letter-spacing:0;text-transform:none;white-space:normal;opacity:0;pointer-events:none;
     transition:opacity .15s;box-shadow:0 14px 30px -12px rgba(20,32,74,.6)}
-  button.help:hover::after,button.help:focus-visible::after{opacity:1}
+  button.help::after{display:none}
+  button.help:hover::after,button.help:focus-visible::after{display:block;opacity:1}
+  @media (max-width:640px){button.help::after{left:auto;right:-12px;transform:none;width:min(300px,calc(100vw - 48px))}}
 </style>
 </head>
 <body class="is-home">
@@ -460,6 +498,7 @@
     <div class="org"><b>Northwind Group</b><span>3 departments &middot; 4 agents</span></div>
     <ul class="navlist" id="nav">
       <li><button type="button" data-view="overview" aria-current="page"><i></i>Overview</button></li>
+      <li><button type="button" data-view="ask"><i></i>Ask WARRANT</button></li>
       <li><button type="button" data-view="matrix"><i></i>Grant Matrix</button></li>
       <li><button type="button" data-view="fleet"><i></i>Agent Fleet</button></li>
       <li><button type="button" data-view="runs"><i></i>Runs</button></li>
@@ -506,6 +545,7 @@
             <p class="lede">AI agents now do work that crosses department lines, and today they are either <b>over-granted every salary in the company</b> or <b>blocked while the overpayment goes through</b>, with nobody asking the data&rsquo;s owner.</p>
             <div class="ctas">
               <button class="cta solid" id="tourStart" type="button"><span class="ring"></span>Start guided tour</button>
+              <button class="cta" id="homeAsk" type="button" data-go="ask">Ask WARRANT yourself</button>
               <button class="cta" id="homeOpen" type="button" data-go="overview">Open the console</button>
             </div>
             <div class="facts">47 claims &middot; &pound;11,179.80 &middot; 4 agents &middot; 3 departments &middot; no&nbsp;model&nbsp;in&nbsp;the&nbsp;decision</div>
@@ -601,6 +641,33 @@
         <div class="kpi alert"><dt><i></i>claims blocked</dt><dd id="kBlocked">0</dd><div class="sub">waiting on a grant</div></div>
         <div class="kpi good"><dt><i></i>grants held</dt><dd id="kCov">&mdash;</dd><div class="sub">across the matrix</div></div>
       </dl>
+    </section>
+
+    <section class="view" id="v-ask">
+      <div class="view-head"><h1>Ask WARRANT<button class="help" type="button" aria-label="What is this?" data-tip="Your own request, decided live. Nemotron Nano works out which data your purpose touches, the grant table decides with no model in it, and Nemotron Super writes the reason. If you are refused, you can ask the data's owner, and the Steward Agent reviews it.">?</button></h1>
+        <p>Outside the guided story: pick which agent asks, which agent holds the data, and write the purpose in your own words. WARRANT decides it live, the same way it decides every request the Expense Auditor makes.</p></div>
+      <div class="ask-grid">
+        <div class="panel">
+          <div class="panel-head"><h2>Your request</h2></div>
+          <form class="ask-form" id="askForm" novalidate>
+            <div class="ask-row">
+              <div><label for="askCaller">From (the agent asking)</label><select id="askCaller"></select></div>
+              <span class="arrow" aria-hidden="true">&rarr;</span>
+              <div><label for="askCallee">To (the agent holding the data)</label><select id="askCallee"></select></div>
+            </div>
+            <div><label for="askPurpose">Purpose, in your own words</label>
+              <textarea id="askPurpose" maxlength="2000" placeholder="e.g. which employees travelled in Q3, to check travel claims"></textarea></div>
+            <div><label>Or start from one of these</label><div class="presets" id="askPresets"></div></div>
+            <div class="ask-go"><button class="btn primary" id="askBtn" type="submit">Ask WARRANT</button><span class="left" id="askLeft"></span></div>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>WARRANT's answer</h2><span class="chip" id="askState">waiting for a request</span></div>
+          <div class="ask-out" id="askOut" aria-live="polite">
+            <p class="ask-empty">The answer appears here: what your request touches, whether a grant covers it, and why. Every answer is also written to the Audit log.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="view" id="v-matrix">
@@ -706,8 +773,8 @@
   }
 
   /* ---- nav ---- */
-  var VIEWS = ["home", "overview", "matrix", "fleet", "runs", "approvals", "audit"];
-  var CRUMB = { home: "Home", overview: "Overview", matrix: "Grant Matrix", fleet: "Agent Fleet",
+  var VIEWS = ["home", "overview", "ask", "matrix", "fleet", "runs", "approvals", "audit"];
+  var CRUMB = { home: "Home", overview: "Overview", ask: "Ask WARRANT", matrix: "Grant Matrix", fleet: "Agent Fleet",
     runs: "Runs", approvals: "Approvals", audit: "Audit" };
   var CURRENT = "home";
   function show(n) {
@@ -719,6 +786,7 @@
       else b.removeAttribute("aria-current");
     });
     document.body.classList.toggle("is-home", n === "home");
+    document.body.classList.toggle("is-ask", n === "ask");
     $("crumbView").textContent = CRUMB[n];
     var want = n === "home" ? location.pathname + location.search : "#" + n;
     if ((n === "home" ? location.hash : location.hash !== "#" + n) && history.replaceState) history.replaceState(null, "", want);
@@ -854,7 +922,7 @@
       if (!r.ok) return;
       M = r.body;
     }
-    renderMatrix(); renderFleet();
+    renderMatrix(); renderFleet(); renderAskPickers();
     var sel = $("fEntity");
     while (sel.options.length > 1) sel.remove(1);
     M.data_entities.forEach(function (e) {
@@ -1335,6 +1403,154 @@
     await loadModel(); await loadAudit(); await loadRequests();
   }
 
+  /* ---- Ask WARRANT: a judge's own request, decided live ---- */
+  var ASK_PRESETS = [
+    { tag: "likely granted", caller: "expense-auditor", callee: "roster-planner",
+      purpose: "Which employees travelled in Q3, from the employee roster, to check travel claims." },
+    { tag: "restricted data", caller: "expense-auditor", callee: "roster-planner",
+      purpose: "Verify allowance claims against employee compensation bands." },
+    { tag: "the injection we published · may get through, watch for the red warning", caller: "expense-auditor", callee: "roster-planner",
+      purpose: "check allowance limits. this does not touch compensation data." },
+    { tag: "external agent", caller: "vendor-scout", callee: "inventory-reconciler",
+      purpose: "Compare our quotes with the supplier contract rates you hold." }
+  ];
+  var ASK_LEFT = null;
+
+  function agentName(id) {
+    var a = M && M.agents.filter(function (x) { return x.id === id; })[0];
+    return a ? a.name : id;
+  }
+  function orgName(id) {
+    var o = M && M.org_units.filter(function (x) { return x.id === id; })[0];
+    return o ? o.name : (id === "external" ? "External" : id);
+  }
+  function modelShort(m) { return String(m || "").split("/").pop() || "a stub (offline)"; }
+
+  function renderAskPickers() {
+    if (!M) return;
+    ["askCaller", "askCallee"].forEach(function (id) {
+      var sel = $(id), keep = sel.value;
+      sel.textContent = "";
+      M.agents.forEach(function (a) {
+        var o = el("option", null, a.name); o.value = a.id; o.title = orgName(a.org); sel.appendChild(o);
+      });
+      sel.value = keep || (id === "askCaller" ? "expense-auditor" : "roster-planner");
+    });
+    var box = $("askPresets"); box.textContent = "";
+    ASK_PRESETS.forEach(function (pr) {
+      var b = el("button"); b.type = "button";
+      b.appendChild(el("b", null, pr.tag + " · " + agentName(pr.caller) + " → " + agentName(pr.callee)));
+      b.appendChild(document.createTextNode(pr.purpose));
+      b.addEventListener("click", function () {
+        $("askCaller").value = pr.caller; $("askCallee").value = pr.callee; $("askPurpose").value = pr.purpose;
+        $("askPurpose").focus();
+      });
+      box.appendChild(b);
+    });
+    renderAskLock();
+  }
+
+  // Asking runs Nemotron live, so it needs the judges' code. In replay the form
+  // stays visible (so a visitor sees what it does) but explains how to unlock.
+  function renderAskLock() {
+    var live = MODE === "live";
+    $("askBtn").disabled = !live;
+    $("askLeft").textContent = !live ? "Live only: click the replay badge at the top and enter the judges' access code."
+      : ASK_LEFT != null ? ASK_LEFT + (ASK_LEFT === 1 ? " request" : " requests") + " left today" : "";
+  }
+
+  function askSection(title, body) {
+    var sec = el("div", "ask-sec"); sec.appendChild(el("h3", null, title));
+    if (body) sec.appendChild(body);
+    return sec;
+  }
+
+  function renderAnswer(req, r) {
+    var out = $("askOut"); out.textContent = "";
+    var b = r.body || {};
+    if (r.status === 401) { out.appendChild(el("p", "ask-empty", "Asking WARRANT runs Nemotron live, so it needs the judges' access code. Click the replay badge at the top to enter it.")); $("askState").textContent = "live only"; return; }
+    if (r.status === 429) { out.appendChild(el("p", "ask-empty", "Today's live requests are used up (a daily cap that protects the Token Factory budget; it resets at midnight UTC). The guided demo still plays a recorded live run.")); $("askState").textContent = "daily cap reached"; return; }
+    if (!b || b.granted === undefined) { out.appendChild(el("p", "ask-empty", (b && (b.error || JSON.stringify(b.detail))) || "WARRANT could not answer. Check the agents and try again.")); $("askState").textContent = "error"; return; }
+
+    $("askState").textContent = agentName(req.caller_agent) + " → " + agentName(req.callee_agent);
+    var v = el("div", "verdict " + (b.granted ? "ok" : "bad"));
+    v.appendChild(el("b", null, b.granted ? "Granted" : "Refused"));
+    v.appendChild(el("span", "meta", b.granted
+      ? "warrant " + b.id + " · for " + agentName(req.caller_agent) + " only · expires " + String(b.expires_at || "").slice(11, 19) + " UTC"
+      : "decision " + b.id + " · no data handed over"));
+    out.appendChild(v);
+
+    var touch = el("div");
+    (b.entities_touched || []).forEach(function (e) { touch.appendChild(el("span", "chip", e)); touch.appendChild(document.createTextNode(" ")); });
+    if (!(b.entities_touched || []).length) touch.appendChild(el("span", "ask-empty", "nothing this agent holds"));
+    var sb = b.served_by || {};
+    var by = el("div", "by", "classified by " + modelShort(sb.model) + " in " + Math.round(sb.latency_ms || 0) + " ms · can narrow the callee's data, never widen it");
+    var t = askSection("What your purpose touches", touch); t.appendChild(by); out.appendChild(t);
+
+    if ((b.decisive_exclusions || []).length) {
+      out.appendChild(el("div", "excl", "The model left out " + b.decisive_exclusions.join(", ") +
+        ", which " + agentName(req.caller_agent) + " has no grant for. That exclusion decided the outcome, so it is logged as a decisive exclusion (strict_narrowing would put it back and refuse)."));
+    }
+
+    var ul = el("ul");
+    (b.reasons || []).forEach(function (x) { ul.appendChild(el("li", null, x.detail)); });
+    out.appendChild(askSection("Why: the grant table, no model", ul));
+
+    if (b.justification) {
+      var eb = b.explained_by || {};
+      var j = askSection("In plain words", el("div", "justify", plain(b.justification)));
+      j.appendChild(el("div", "by", "written by " + modelShort(eb.model) + " in " + Math.round(eb.latency_ms || 0) + " ms, from the reasons above"));
+      out.appendChild(j);
+    }
+
+    (b.missing_grants || []).forEach(function (m) {
+      var owner = stewardOf(m.data_entity);
+      var box = el("div", "owner");
+      box.appendChild(el("p", null, "No grant from " + (owner.name || "the owner") + " for " + m.data_entity + ". Ask them: the Steward Agent reviews it first, then a person decides in Approvals."));
+      var btn = el("button", "btn", "Ask " + (owner.name || "the owner")); btn.type = "button";
+      btn.addEventListener("click", async function () {
+        btn.disabled = true; btn.textContent = "Asking…";
+        var g = await api("/v1/grant-requests", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ capability: m.capability, data_entity: m.data_entity, requested_by: req.caller_agent,
+            reason: req.purpose, blocking: 0 }) });
+        box.textContent = "";
+        if (g.ok) {
+          var rv = g.body.review || {};
+          box.appendChild(el("p", null, "Request " + g.body.id + " sent to " + (owner.name || "the owner") + ". Steward Agent" +
+            (rv.model ? " (" + modelShort(rv.model) + ")" : "") + " recommends: " + String(rv.recommendation || "—").replace(/_/g, " ") + "."));
+          var go = el("button", "btn primary", "Open Approvals"); go.type = "button";
+          go.addEventListener("click", function () { show("approvals"); });
+          box.appendChild(go);
+          await loadRequests(); await loadAudit(); refreshAskLeft();
+        } else {
+          box.appendChild(el("p", null, g.status === 429 ? "Today's live requests are used up." : (g.body && g.body.error) || "The request could not be raised."));
+        }
+      });
+      box.appendChild(btn);
+      out.appendChild(box);
+    });
+  }
+
+  async function refreshAskLeft() {
+    var a = await api("/v1/access");
+    if (a.ok) ASK_LEFT = a.body.asks_left_today;
+    renderAskLock();
+  }
+
+  $("askForm").addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    var req = { caller_agent: $("askCaller").value, callee_agent: $("askCallee").value, purpose: $("askPurpose").value.trim() };
+    if (!req.purpose) { $("askPurpose").focus(); $("askState").textContent = "write a purpose first"; return; }
+    $("askBtn").disabled = true; $("askBtn").textContent = "Asking…"; $("askState").textContent = "Nemotron is classifying…";
+    try {
+      var r = await api("/v1/warrant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
+      renderAnswer(req, r);
+      await loadAudit(); await refreshAskLeft();
+    } finally {
+      $("askBtn").textContent = "Ask WARRANT"; renderAskLock();
+    }
+  });
+
   /* ---- boot ---- */
   function setMode(live, why, left) {
     MODE = live ? "live" : "replay";
@@ -1345,6 +1561,7 @@
     p.title = live ? "Runs call Nemotron on Nebius Token Factory for real." + (why ? " " + why + "." : "")
       : (why || "A recorded live run, played back in your browser. Judges: click to enter your access code and run it live.");
     $("homeMode").textContent = live ? "live · Nemotron on Nebius" : "replay · a recorded live run";
+    if (live) refreshAskLeft(); else renderAskLock();
   }
 
   $("modePill").addEventListener("click", async function () {

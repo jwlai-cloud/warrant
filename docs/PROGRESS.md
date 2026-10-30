@@ -28,6 +28,16 @@
   (`docs/architecture.html` / `.png`) ringed band by band. No live link in it;
   the close card says the link and code are in the submission.
 
+### Ask WARRANT (2026-10-29/30)
+Judges could only replay the audit story, live or recorded. A new console view
+lets them bring their own request: any caller, any callee, a free-text purpose,
+decided live through the same `POST /v1/warrant` the agents use, with the
+model's classification, any decisive exclusion, the grant table's reasons and
+Super's explanation. A refusal can be escalated to the owner from there
+(Steward Agent review, then Approvals). Free-form requests have their own daily
+cap (`WARRANT_ASK_DAILY_CAP`, default 200) separate from full runs. The landing
+page offers both ways in. 103 tests.
+
 ### LangGraph 1.2 refactor (review + research agents, refactor in a worktree)
 The Expense Auditor now follows current 1.x idioms: dependencies through
 `context_schema` / `Runtime`, claims as graph input with input/output schemas,

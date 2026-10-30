@@ -15,7 +15,7 @@ fast, and make every claim visible on screen, not only spoken.
 | B · The system | 0:30–1:10 | Fig. 2 architecture (`docs/architecture.html`), ringed band by band | Four agents, three departments, WARRANT between them: who plans, who decides (no model), who re-checks, who reviews, who approves. Stack: Nemotron on Token Factory, MCP. |
 | C · The rights | 1:11–1:22 | Grant Matrix | Rights are explicit per capability × data entity; salaries are restricted, no grant means no. |
 | D · Live demo | 1:22–2:37 | Console, two live runs | Plan → granted → refused with reason → three findings → grant request → Steward Agent review → human approval → re-run finds the hidden £290 overpayment. |
-| E · Proof | 2:37–2:46 | Proof card | 40 review findings fixed, 102 tests, a prompt injection found by our own eval and published. |
+| E · Proof | 2:37–2:46 | Proof card | 40 review findings fixed, 103 tests, a prompt injection found by our own eval and published. |
 | F · Close | 2:46–2:55 | Close card | One-line claim, live demo and code links. |
 
 Every line of narration is a **beat** in `demo/narration.json`: the line, where
@@ -57,5 +57,5 @@ figures. Before submitting, grep for each.
 | Before approval | 38 verified · 3 flagged · 6 blocked · £2,561.00 under query |
 | After approval | 43 verified · 4 flagged · 0 blocked · £2,851.00 under query |
 | The hidden one | CLM-3606, £290 allowance vs £255 band cap |
-| Tests | 102 |
+| Tests | 103 |
 | Review | 40 confirmed findings, all fixed |
