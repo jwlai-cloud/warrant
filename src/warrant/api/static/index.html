@@ -376,6 +376,28 @@
   body.is-home .shell{grid-template-columns:minmax(0,1fr)}
   body.is-home nav.rail,body.is-home .topbar,body.is-home .stepbar{display:none}
   body.is-ask .stepbar{display:none}
+  body:not(.is-demo) .stepbar{display:none}
+  /* ---------- Your data ---------- */
+  .scen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:18px}
+  .scen{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px 20px;display:grid;gap:10px;align-content:start;min-width:0}
+  .scen.current{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset}
+  .scen h3{margin:0;font:600 26px/1.1 var(--serif)}
+  .scen .facts{font:400 12.5px/1.4 var(--mono);color:var(--ink-faint)}
+  .scen p{margin:0;font-size:14.5px;color:var(--ink-soft)}
+  .scen .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .scen .demo-tag{justify-self:start}
+  .up-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;padding:18px 20px}
+  .up-form{display:grid;gap:12px;align-content:start}
+  .up-form label{display:block;font:400 12px/1.4 var(--mono);color:var(--ink-faint);margin-bottom:5px}
+  .up-form input[type=text]{width:100%;box-sizing:border-box;font:400 15px/1.4 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:9px 12px}
+  .up-form input[type=file]{font:400 14px/1.4 var(--sans);color:var(--ink);max-width:100%}
+  .up-msg{font-size:14px;margin:0}
+  .up-msg.bad{color:var(--red-ink)} .up-msg.ok{color:var(--gold-ink)}
+  .schema{font-size:13.5px}
+  .schema td:first-child{font:400 12.5px/1.4 var(--mono);white-space:nowrap}
+  a.dl{font:600 14px/1 var(--sans);color:var(--blue)}
+  .ws-chip{font:400 12.5px/1.4 var(--mono)}
+  @media (max-width:980px){.up-grid{grid-template-columns:1fr}}
   /* ---------- Ask WARRANT ---------- */
   .ask-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
   .ask-form{padding:18px 20px;display:grid;gap:14px}
@@ -498,6 +520,7 @@
     </button>
     <div class="org"><b>Northwind Group</b><span>3 departments &middot; 4 agents</span></div>
     <ul class="navlist" id="nav">
+      <li><button type="button" data-view="data"><i></i>Your data</button></li>
       <li><button type="button" data-view="overview" aria-current="page"><i></i>Overview</button></li>
       <li><button type="button" data-view="ask"><i></i>Ask WARRANT</button></li>
       <li><button type="button" data-view="matrix"><i></i>Grant Matrix</button></li>
@@ -545,9 +568,9 @@
             <h1 class="title">Every crossing<br>needs a <em>warrant.</em></h1>
             <p class="lede">AI agents now do work that crosses department lines, and today they are either <b>over-granted every salary in the company</b> or <b>blocked while the overpayment goes through</b>, with nobody asking the data&rsquo;s owner.</p>
             <div class="ctas">
-              <button class="cta solid" id="tourStart" type="button"><span class="ring"></span>Start guided tour</button>
+              <button class="cta solid" id="homeData" type="button" data-go="data"><span class="ring"></span>Choose data and start</button>
               <button class="cta" id="homeAsk" type="button" data-go="ask">Ask WARRANT yourself</button>
-              <button class="cta" id="homeOpen" type="button" data-go="overview">Open the console</button>
+              <button class="cta" id="tourStart" type="button">Watch the guided demo</button>
             </div>
             <div class="facts">47 claims &middot; &pound;11,179.80 &middot; 4 agents &middot; 3 departments &middot; no&nbsp;model&nbsp;in&nbsp;the&nbsp;decision</div>
           </div>
@@ -615,7 +638,7 @@
         <p>Cross-boundary agent traffic. A refusal is not an incident; it is the control working. What matters is how long a legitimate request waits for a grant.</p></div>
       <div class="banner" id="ovBanner" hidden></div>
       <div class="panel">
-        <div class="panel-head"><h2>Q3 expense audit &middot; Northwind Group</h2>
+        <div class="panel-head"><h2 id="ovTitle">Q3 expense audit &middot; Northwind Group</h2>
           <button class="btn primary" id="ovRun" type="button">Run audit</button></div>
         <div class="ov-grid">
           <div class="expo">
@@ -623,7 +646,7 @@
             <div class="v" id="kRisk">&mdash;</div>
             <div class="cells" id="ovCells" aria-label="47 claims, not yet checked"></div>
             <div class="cells-legend" id="ovLegend"></div>
-            <p>The Expense Auditor (Finance) audits 47 Q3 claims worth &pound;11,179.80. Finance can read its own claims; every other check needs data a different department owns, so the agent has to ask WARRANT first.</p>
+            <p id="ovIntro">The Expense Auditor (Finance) audits 47 Q3 claims worth &pound;11,179.80. Finance can read its own claims; every other check needs data a different department owns, so the agent has to ask WARRANT first.</p>
           </div>
           <div class="tscroll"><table>
             <thead><tr><th>Check</th><th>Needs</th><th>Owned by</th><th>Result</th></tr></thead>
@@ -642,6 +665,36 @@
         <div class="kpi alert"><dt><i></i>claims blocked</dt><dd id="kBlocked">0</dd><div class="sub">waiting on a grant</div></div>
         <div class="kpi good"><dt><i></i>grants held</dt><dd id="kCov">&mdash;</dd><div class="sub">across the matrix</div></div>
       </dl>
+    </section>
+
+    <section class="view" id="v-data">
+      <div class="view-head"><h1>Your data<button class="help" type="button" aria-label="What is this?" data-tip="Finance's own data: the expense claims the Expense Auditor audits. The other departments' data (supplier contracts, the roster, restricted salary bands) stays with them and is reachable only through WARRANT, so you can bring claims but not their data.">?</button></h1>
+        <p>Choose the expense claims the Expense Auditor will audit: a prepared scenario, or your own file in the fixed format. The other departments' data stays theirs; the agent has to ask WARRANT for it, whatever you load.</p></div>
+      <div class="banner" id="dataBanner" hidden></div>
+      <div class="scen-grid" id="scenList"></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Upload your claims</h2><a class="dl" href="/static/claims-template.csv" download="claims-template.csv">Download the template</a></div>
+        <div class="up-grid">
+          <form class="up-form" id="upForm" novalidate>
+            <div><label for="csvFile">CSV file (up to 300 claims, 100 KB)</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
+            <div><label for="csvName">Name for this data</label><input type="text" id="csvName" maxlength="60" placeholder="e.g. Q3 marketing claims"></div>
+            <div><button class="btn primary" id="csvBtn" type="submit">Load and audit these claims</button></div>
+            <p class="up-msg" id="csvMsg" aria-live="polite"></p>
+          </form>
+          <div class="tscroll"><table class="schema">
+            <thead><tr><th>Column</th><th>What goes in it</th></tr></thead>
+            <tbody>
+              <tr><td>id</td><td>Unique claim id, e.g. CLM-101</td></tr>
+              <tr><td>employee_id</td><td>Who claimed it. People &amp; Culture holds E-1042, E-1088, E-1153, E-1201, E-1247, E-1290; others are queried</td></tr>
+              <tr><td>date</td><td>YYYY-MM-DD</td></tr>
+              <tr><td>type</td><td><b>supplier</b> (an invoice) or <b>allowance</b> (a daily allowance)</td></tr>
+              <tr><td>supplier_id, supplier</td><td>For supplier claims. Operations holds contracts for SUP-014, SUP-027, SUP-033, SUP-041; others are queried</td></tr>
+              <tr><td>category</td><td>freight, supplies, travel (checked against the roster) or allowance</td></tr>
+              <tr><td>description</td><td>Short text, plain characters</td></tr>
+              <tr><td>amount</td><td>In pounds, e.g. 128.50</td></tr>
+            </tbody></table></div>
+        </div>
+      </div>
     </section>
 
     <section class="view" id="v-ask">
@@ -774,8 +827,8 @@
   }
 
   /* ---- nav ---- */
-  var VIEWS = ["home", "overview", "ask", "matrix", "fleet", "runs", "approvals", "audit"];
-  var CRUMB = { home: "Home", overview: "Overview", ask: "Ask WARRANT", matrix: "Grant Matrix", fleet: "Agent Fleet",
+  var VIEWS = ["home", "data", "overview", "ask", "matrix", "fleet", "runs", "approvals", "audit"];
+  var CRUMB = { home: "Home", data: "Your data", overview: "Overview", ask: "Ask WARRANT", matrix: "Grant Matrix", fleet: "Agent Fleet",
     runs: "Runs", approvals: "Approvals", audit: "Audit" };
   var CURRENT = "home";
   function show(n) {
@@ -1134,7 +1187,7 @@
   // The 47-cell outcome bar: one cell per claim, verified / flagged / blocked.
   function renderCells(barId, legendId, out) {
     var bar = $(barId), lg = $(legendId);
-    var total = out ? out.total : 47, f = out ? (out.flagged || []).length : 0,
+    var total = out ? out.total : (WS ? WS.count : 47), f = out ? (out.flagged || []).length : 0,
       x = out ? (out.unresolved || 0) : 0, g = out ? out.closed : 0;
     bar.textContent = ""; lg.textContent = "";
     for (var i = 0; i < total; i++)
@@ -1314,6 +1367,7 @@
 
   function run() {
     if (RUNNING) return;
+    if (needsData()) { show("data"); dataNote("Choose the claims to audit first: a prepared scenario, or upload your own."); return; }
     RUNNING = true;
     $("runBtn").disabled = true; $("ovRun").disabled = true;
     $("runBtn").textContent = "Running…"; $("ovRun").textContent = "Running…";
@@ -1358,6 +1412,7 @@
     REPLAY = await (await fetch("/static/replay.json")).json();
     PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
     setMode(false, "Today's live runs are used up");
+    setDemo(true); loadWorkspace();
     var b = $("capBanner"); b.hidden = false; b.className = "banner cap"; b.setAttribute("role", "alert");
     b.textContent = "";
     b.append(el("span", "cap-ico", "!"), el("b", null, "Today's live Nemotron runs are used up"),
@@ -1387,10 +1442,10 @@
   $("ovRun").addEventListener("click", run);
 
   $("resetBtn").addEventListener("click", resetDemo);
-  async function resetDemo() {
+  async function resetDemo(serverDone) {
     if (MODE === "replay") {
       PHASE = 0; REQS = []; AUDIT = []; M = JSON.parse(JSON.stringify(REPLAY.model));
-    } else await api("/v1/demo/reset", { method: "POST" });
+    } else if (serverDone !== true) await api("/v1/demo/reset", { method: "POST" });
     LAST = null;
     resetLive();
     renderCells("ovCells", "ovLegend", null);
@@ -1403,6 +1458,101 @@
     $("kRisk").textContent = "—";
     await loadModel(); await loadAudit(); await loadRequests();
   }
+
+  /* ---- Your data: which claims the audit runs on ---- */
+  // WS mirrors the server's workspace for this browser. KEYED: a judges'
+  // deployment (a key is configured), where a judge chooses data first and the
+  // demo framing (step bar, tour) appears only in the guided demo. Without a
+  // key (local dev, the video capture) it is the demo, as before.
+  var WS = null, SCEN = [], KEYED = false, DEMO = false;
+  function setDemo(on) { DEMO = on; document.body.classList.toggle("is-demo", on); }
+  function needsData() { return MODE === "live" && KEYED && !(WS && WS.chosen); }
+  function money(n) { return "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function dataNote(text, bad) {
+    var b = $("dataBanner"); b.hidden = !text; b.className = "banner" + (bad ? " bad" : ""); b.textContent = text || "";
+  }
+  function applyWorkspace() {
+    if (!WS) return;
+    $("ovTitle").textContent = WS.title + " · Northwind Group";
+    $("ovIntro").textContent = "The Expense Auditor (Finance) audits " + WS.count + " claims worth " + money(WS.total) +
+      ". Finance can read its own claims; every other check needs data a different department owns, so the agent has to ask WARRANT first.";
+    $("ovCells").setAttribute("aria-label", WS.count + " claims, not yet checked");
+    renderCells("ovCells", "ovLegend", null); renderCells("outcomeBar", "outcomeLegend", null);
+    renderScenarios();
+  }
+  function renderScenarios() {
+    var box = $("scenList"); box.textContent = "";
+    SCEN.forEach(function (sc) {
+      var current = WS && WS.chosen && WS.scenario === sc.id;
+      var card = el("div", "scen" + (current ? " current" : ""));
+      if (sc.demo) card.appendChild(el("span", "tag warn demo-tag", "guided demo data"));
+      card.appendChild(el("h3", null, sc.title));
+      card.appendChild(el("div", "facts", sc.count + " claims · " + money(sc.total)));
+      card.appendChild(el("p", null, sc.summary));
+      var row = el("div", "row");
+      var locked = MODE !== "live" && !sc.demo;
+      var use = el("button", "btn primary", current ? "In use · audit it" : "Use this data"); use.type = "button";
+      use.disabled = locked;
+      use.addEventListener("click", function () { current ? show("overview") : chooseScenario(sc.id, false); });
+      row.appendChild(use);
+      if (sc.demo) {
+        var tour = el("button", "btn", "Guided demo (tour)"); tour.type = "button";
+        tour.addEventListener("click", function () { window.__warrant.startTour(); });
+        row.appendChild(tour);
+      }
+      card.appendChild(row);
+      if (locked) card.appendChild(el("p", null, "Live only: enter the judges' access code (the replay badge at the top)."));
+      box.appendChild(card);
+    });
+    $("csvBtn").disabled = MODE !== "live";
+    if (MODE !== "live") { $("csvMsg").className = "up-msg"; $("csvMsg").textContent = "Uploading runs live, so it needs the judges' access code."; }
+  }
+  async function loadWorkspace() {
+    var s = await api("/v1/scenarios"); if (s.ok) SCEN = s.body.scenarios;
+    if (MODE === "replay") {
+      var n = SCEN.filter(function (x) { return x.demo; })[0];
+      WS = n ? { scenario: n.id, title: n.title, demo: true, count: n.count, total: n.total, chosen: true } : null;
+    } else {
+      var w = await api("/v1/workspace"); if (w.ok) WS = w.body;
+    }
+    applyWorkspace();
+  }
+  async function useWorkspace(r, demo) {
+    if (!r.ok) { return r; }
+    WS = r.body; setDemo(demo); dataNote("");
+    await resetDemo(true);
+    applyWorkspace();
+    return r;
+  }
+  async function chooseScenario(id, demo) {
+    if (MODE !== "live") { setDemo(true); await resetDemo(); show("overview"); return; }
+    var r = await useWorkspace(await api("/v1/workspace", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: id }) }), demo);
+    if (!r.ok) { dataNote((r.body && r.body.error) || "That data could not be loaded.", true); return; }
+    if (!demo) show("overview");
+  }
+  // The tour starts here: the guided demo is the Northwind data with the
+  // step bar and the ring.
+  async function startDemo() {
+    var n = SCEN.filter(function (x) { return x.demo; })[0];
+    if (MODE === "live" && KEYED && n) { await chooseScenario(n.id, true); }
+    else { setDemo(true); await resetDemo(); }
+  }
+  $("upForm").addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    var f = $("csvFile").files[0], msg = $("csvMsg");
+    if (!f) { msg.className = "up-msg bad"; msg.textContent = "Choose a CSV file first (or download the template)."; return; }
+    if (f.size > 100000) { msg.className = "up-msg bad"; msg.textContent = "That file is over 100 KB."; return; }
+    $("csvBtn").disabled = true; msg.className = "up-msg"; msg.textContent = "Checking the file…";
+    try {
+      var text = await f.text();
+      var r = await useWorkspace(await api("/v1/workspace", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: text, name: $("csvName").value.trim() || f.name.replace(/\.csv$/i, "") }) }), false);
+      if (!r.ok) { msg.className = "up-msg bad"; msg.textContent = (r.body && r.body.error) || "The file could not be loaded."; return; }
+      msg.className = "up-msg ok"; msg.textContent = "Loaded " + WS.count + " claims (" + money(WS.total) + "). Run the audit on the Overview.";
+      show("overview");
+    } finally { $("csvBtn").disabled = MODE !== "live"; }
+  });
 
   /* ---- Ask WARRANT: a judge's own request, decided live ---- */
   var ASK_PRESETS = [
@@ -1581,7 +1731,8 @@
       await capReached(); show("runs");
     } else if (a.ok && a.body.live) {
       try { localStorage.setItem("warrantKey", KEY); } catch (e) {}
-      setMode(true, "", a.body.runs_left_today); await loadModel(); await loadAudit(); await loadRequests();
+      setMode(true, "", a.body.runs_left_today); setDemo(false); await loadWorkspace();
+      await loadModel(); await loadAudit(); await loadRequests();
     } else { KEY = ""; window.alert("That code was not accepted. Replay mode stays on."); }
   });
 
@@ -1591,6 +1742,7 @@
 
   (async function () {
     var a = await api("/v1/access");
+    KEYED = !!(a.ok && a.body.key_required);
     if (a.ok && !a.body.live) {
       if (KEY) { KEY = ""; try { localStorage.removeItem("warrantKey"); } catch (e) {} }
       var rr = await fetch(a.body.replay);
@@ -1603,6 +1755,8 @@
       REPLAY = { recorded_at: "" };
       setMode(true, "", a.ok ? a.body.runs_left_today : null);
     }
+    setDemo(MODE === "replay" || !KEYED);
+    await loadWorkspace();
     await loadHealth();
     await loadModel();
     await loadAudit();
@@ -1611,7 +1765,7 @@
 
   // For tour.js: what it needs to follow the story, nothing more.
   window.__warrant = {
-    show: show, reset: resetDemo, current: function () { return CURRENT; },
+    show: show, reset: startDemo, current: function () { return CURRENT; },
     state: function () { return { running: RUNNING, runsDone: RUNS_DONE, reqs: REQS }; }
   };
 })();

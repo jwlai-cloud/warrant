@@ -1,0 +1,7 @@
+id,employee_id,date,type,supplier_id,supplier,category,description,amount
+EX-001,E-1042,2026-07-03,supplier,SUP-014,Northwind Logistics,freight,Pallet freight to Leeds DC,128.50
+EX-002,E-1088,2026-07-21,supplier,SUP-027,Harbour Freight Co,freight,Return haulage Bristol,610.00
+EX-003,E-1201,2026-07-13,supplier,SUP-041,Meridian Travel,travel,Client visit Edinburgh - rail,620.00
+EX-004,E-1153,2026-08-04,supplier,SUP-033,Calder Office Supply,supplies,Printer toner,41.25
+EX-005,E-1290,2026-09-22,allowance,,,allowance,Daily travel allowance,300.00
+EX-006,E-1042,2026-09-08,supplier,SUP-088,Blue Fern Events,freight,Event logistics,420.00

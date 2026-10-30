@@ -28,6 +28,18 @@
   (`docs/architecture.html` / `.png`) ringed band by band. No live link in it;
   the close card says the link and code are in the submission.
 
+### Your data first (2026-10-29/30)
+Judges said the console read as a scripted demo. A judge now starts by choosing
+what the Expense Auditor audits: three prepared scenarios (supplier review with
+no restricted data; travel and allowances with a refusal and an over-band
+allowance after approval; Northwind Q3, the guided demo) or their own claims as
+a CSV in a fixed, validated format (`agents/claims.py`, template in the
+console). Claims are per browser (a workspace cookie); grants and the audit log
+stay shared. The step bar and tour appear only in the guided demo. The
+fallback plan now asks only for the data the loaded claims need.
+`scripts/e2e_console.py` drives every section in Chrome (42 checks: judge,
+stranger, local dev, daily cap). 115 tests.
+
 ### Ask WARRANT (2026-10-29/30)
 Judges could only replay the audit story, live or recorded. A new console view
 lets them bring their own request: any caller, any callee, a free-text purpose,

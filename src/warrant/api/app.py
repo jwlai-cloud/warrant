@@ -21,6 +21,9 @@ import datetime
 import hmac
 import json
 import os
+import re
+import secrets
+from collections import OrderedDict
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -365,7 +368,7 @@ _RUN_LOCK = asyncio.Lock()
 _stream_task: asyncio.Task | None = None
 
 
-async def _run_auditor(on_event=None) -> dict:
+async def _run_auditor(on_event=None, claims: list[dict] | None = None) -> dict:
     """Run the Expense Auditor against the live plane.
 
     The real LangGraph graph, the real deterministic decisions, real Nemotron
@@ -414,7 +417,8 @@ async def _run_auditor(on_event=None) -> dict:
     # state, of which only the output keys are read below.
     state: dict = {}
     async for mode, chunk in build_graph().astream(
-            {}, context=Ctx(call_fn, _llm()), stream_mode=["custom", "values"]):
+            {"claims": claims} if claims else {}, context=Ctx(call_fn, _llm()),
+            stream_mode=["custom", "values"]):
         if mode == "custom":
             emit(chunk)
         else:
@@ -454,7 +458,7 @@ async def _run_auditor(on_event=None) -> dict:
 
 
 @app.post("/v1/demo/run")
-async def demo_run():
+async def demo_run(request: Request):
     """Run the auditor and return its full state. Gated on demo_mode."""
     if (blocked := _demo_guard()) is not None:
         return blocked
@@ -464,11 +468,11 @@ async def demo_run():
         return JSONResponse(status_code=429, content={
             "error": "today's live runs are used up", "replay": _REPLAY})
     async with _RUN_LOCK:
-        return await _run_auditor()
+        return await _run_auditor(claims=_workspace(request)["claims"])
 
 
 @app.get("/v1/demo/stream")
-async def demo_stream():
+async def demo_stream(request: Request):
     """The same run, streamed as server-sent events while the agent works, so
     the console shows each plan, warrant, refusal and finding as it happens
     rather than replaying them afterwards. Ends with a `done` event carrying
@@ -486,12 +490,13 @@ async def demo_stream():
     # same moment sees it held and gets the 429. The run starts here too, and
     # the lock is released when the run ends however it ends (finished,
     # failed, cancelled by a disconnect, or cancelled before it ever started).
+    claims = _workspace(request)["claims"]
     await _RUN_LOCK.acquire()
     queue: asyncio.Queue = asyncio.Queue()
 
     async def worker():
         try:
-            result = await _run_auditor(on_event=queue.put_nowait)
+            result = await _run_auditor(on_event=queue.put_nowait, claims=claims)
             queue.put_nowait({"kind": "done", "result": result})
         except Exception as exc:  # noqa: BLE001 - surface, never hang the stream
             queue.put_nowait({"kind": "error", "text": f"{type(exc).__name__}: {exc}"})
@@ -540,6 +545,89 @@ async def demo_reset():
             f.unlink()
     _svc.model = load_model(_svc.config.model_dir)
     return {"ok": True, "grants": len(_svc.model.grants)}
+
+
+# ---- workspaces: which claims this visitor's audit runs on ----
+#
+# Finance's own data only (see agents/claims.py). Per browser, by cookie, so
+# one judge's upload never changes what the next judge audits; the grant
+# model and the audit log stay shared, as they would be in one organisation.
+# A visitor with no workspace audits the Northwind Q3 claims, which is what
+# the recorded replay, the guided tour and the video use.
+_WS_COOKIE = "warrant_ws"
+_WS_MAX = 200
+_workspaces: OrderedDict[str, dict] = OrderedDict()
+
+
+def _scenario_ws(sid: str) -> dict:
+    from ..agents.claims import SCENARIOS
+    sc = SCENARIOS[sid]
+    return {"scenario": sid, "title": sc["title"], "demo": sc["demo"],
+            "source": "scenario", "claims": sc["claims"]}
+
+
+def _workspace(request: Request) -> dict:
+    from ..agents.claims import DEFAULT
+    return _workspaces.get(request.cookies.get(_WS_COOKIE, "")) or _scenario_ws(DEFAULT)
+
+
+def _ws_view(ws: dict, chosen: bool) -> dict:
+    return {"scenario": ws["scenario"], "title": ws["title"], "demo": ws["demo"],
+            "source": ws["source"], "count": len(ws["claims"]),
+            "total": round(sum(c["amount"] for c in ws["claims"]), 2), "chosen": chosen}
+
+
+class WorkspaceIn(BaseModel):
+    scenario: str | None = Field(None, max_length=64)
+    csv: str | None = Field(None, max_length=200_000)
+    name: str = Field("", max_length=60)
+
+
+@app.get("/v1/scenarios")
+def list_scenarios():
+    from ..agents.claims import FIELDS, SCENARIOS
+    return {"fields": list(FIELDS), "scenarios": [
+        {"id": k, "title": v["title"], "summary": v["summary"], "demo": v["demo"],
+         "count": len(v["claims"]), "total": round(sum(c["amount"] for c in v["claims"]), 2)}
+        for k, v in SCENARIOS.items()]}
+
+
+@app.get("/v1/workspace")
+def get_workspace(request: Request):
+    return _ws_view(_workspace(request), request.cookies.get(_WS_COOKIE, "") in _workspaces)
+
+
+@app.post("/v1/workspace")
+async def set_workspace(body: WorkspaceIn, request: Request):
+    """Choose the claims to audit: a prepared scenario, or a CSV in the fixed
+    format. Starts the organisation fresh (grants and audit log back to the
+    model's own), the same as Reset, so the first run shows the real refusals."""
+    from ..agents.claims import SCENARIOS, parse_claims_csv
+    if body.csv is not None:
+        try:
+            claims = parse_claims_csv(body.csv)
+        except ValueError as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
+        name = re.sub(r"[^A-Za-z0-9 .,'&()-]", "", body.name)[:60] or "Your claims"
+        ws = {"scenario": "upload", "title": name, "demo": False, "source": "upload",
+              "claims": claims}
+    elif body.scenario in SCENARIOS:
+        ws = _scenario_ws(body.scenario)
+    else:
+        return JSONResponse(status_code=400, content={"error": "choose a scenario or upload a CSV"})
+    wid = request.cookies.get(_WS_COOKIE, "")
+    if wid not in _workspaces:
+        wid = secrets.token_urlsafe(12)
+    _workspaces[wid] = ws
+    _workspaces.move_to_end(wid)
+    while len(_workspaces) > _WS_MAX:
+        _workspaces.popitem(last=False)
+    await demo_reset()
+    response = JSONResponse(content=_ws_view(ws, True))
+    https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    response.set_cookie(_WS_COOKIE, wid, max_age=7 * 86400, httponly=True,
+                        secure=https, samesite="lax")
+    return response
 
 
 @app.get("/v1/audit")

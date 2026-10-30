@@ -101,8 +101,10 @@ async def test_two_streams_at_once_cannot_both_start(app_mod, monkeypatch):
     # The lock used to be taken inside the stream's task, after the response
     # was returned, so two clients arriving together could both pass the check.
     monkeypatch.setenv("WARRANT_JUDGE_KEY", KEY)
-    first = await app_mod.demo_stream()
-    second = await app_mod.demo_stream()
+    from starlette.requests import Request
+    req = Request({"type": "http", "headers": [], "query_string": b""})
+    first = await app_mod.demo_stream(req)
+    second = await app_mod.demo_stream(req)
     assert first.status_code == 200 and second.status_code == 429
     assert list(app_mod._live_runs.values()) == [1]       # counted once
     assert app_mod._RUN_LOCK.locked()

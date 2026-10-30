@@ -85,6 +85,21 @@ FALLBACK_PLAN: list[dict[str, str]] = [
      "why": "check allowances against each claimant's band limit"},
 ]
 
+# Which claims each default step serves. A fallback plan asks only for what
+# the loaded claims need, so an audit of supplier invoices alone never asks for
+# salary data it has no use for.
+_FALLBACK_NEEDS = {
+    "supplier contract rates for Q3 claims": lambda c: c["type"] == "supplier",
+    "which staff travelled in Q3, from the roster": lambda c: c.get("category") == "travel",
+    "verify allowance claims against employee compensation bands": lambda c: c["type"] == "allowance",
+}
+
+
+def _fallback_for(claims: list[dict]) -> list[dict]:
+    steps = [s for s in FALLBACK_PLAN
+             if (need := _FALLBACK_NEEDS.get(s["purpose"])) is None or any(need(c) for c in claims)]
+    return steps or FALLBACK_PLAN
+
 LLM = Callable[[str, str, "dict | None"], Awaitable[str]]
 CallFn = Callable[[str, str], Awaitable[GovernedResult]]
 
@@ -239,7 +254,11 @@ _PLANNER = (
     "and what you will do with it. Ask for each kind of data in its own request: "
     "a request that mixes data you may see with data you may not is refused "
     "whole. Request everything the audit needs even if you suspect it may be "
-    "refused - a refusal tells you who can approve it. At most 4 requests."
+    "refused - a refusal tells you who can approve it. Ask only for data the "
+    "claims in front of you need: supplier invoices are checked against "
+    "supplier contracts, travel bookings against the roster, and allowances "
+    "against compensation bands. If there are no claims of a kind, do not ask "
+    "for its data. At most 4 requests."
 )
 
 _PLAN_SCHEMA = {
@@ -441,7 +460,7 @@ async def plan(state: AuditState, runtime: Runtime[Ctx]) -> dict:
             break
         why_fallback = "model plan named no usable requests"
     if not steps:
-        steps = FALLBACK_PLAN
+        steps = _fallback_for(claims)
         if llm is None:
             why_fallback = "no model configured"
     trace.append(_event(t0, "plan", f"Planned {len(steps)} requests"

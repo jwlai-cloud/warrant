@@ -33,13 +33,19 @@ announcements on 24 September 2026; SAP's H2 release is the next one to watch.*
 
 ## What it does
 
-**Two ways in.** The guided demo walks the Q3 audit story end to end. **Ask
-WARRANT** lets you pick any requesting agent and any data-holding agent, write
-the purpose in your own words, and see WARRANT decide it live: what Nemotron
-Nano says the request touches, the grant table's decision and reasons, and
-Super's explanation. If you're refused, ask the data's owner: the Steward Agent
-(Ultra) reviews it, you approve it in Approvals, and the same request is then
-granted.
+**Start with your data.** A judge opens the console and chooses what the
+Expense Auditor audits: a prepared scenario (supplier spend review; travel and
+allowances; or the Northwind Q3 audit, which is also the guided demo), or their
+own claims as a CSV in the fixed format (template in the console). That is
+Finance's own data only: the other departments' contracts, roster and salary
+bands stay theirs, reachable only through WARRANT, whatever you load. The step
+bar and tour appear only if you pick the guided demo.
+
+**Ask WARRANT** takes any requesting agent, any data-holding agent and a
+purpose in your own words, and decides it live: what Nemotron Nano says the
+request touches, the grant table's decision and reasons, and Super's
+explanation. If you're refused, ask the owner: the Steward Agent (Ultra)
+reviews it, you approve it in Approvals, and the same request is then granted.
 
 **Live demo:** without an access code, the hosted console plays back a real
 recorded live run in your own browser (no model calls, nothing shared), so
@@ -350,9 +356,9 @@ Named so a judge doesn't have to find it:
 
 ## What's next
 
-- **Bring your own data.** Upload claims (CSV) and run the audit on them; the
-  graph already takes `claims` as input. Then a persistent store for grants and
-  the audit log, and per-visitor state instead of one shared demo.
+- **A persistent store** for grants and the audit log (claims are already per
+  visitor; grants and the log are shared, as in one organisation), and uploads
+  of the other departments' reference data by their owners.
 - **Signed, single-use warrants** a data agent can verify without calling the
   plane.
 - **The org model from an EA tool** (LeanIX and similar) instead of YAML.
