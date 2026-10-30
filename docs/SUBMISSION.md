@@ -90,12 +90,23 @@ Without the code, the console plays a recorded live run of the demo.
   metamodel (organisation unit, business capability, data entity, agent,
   grant) loaded from YAML and validated on load. Grant resolution is pure graph
   traversal: no model call, no I/O, unit-tested without a GPU.
-- **Agents.** LangGraph for the Expense Auditor's replanning loop; three data
+- **How the agents call Nemotron.** Seven model calls, each one HTTPS request
+  to Token Factory's OpenAI-compatible `/chat/completions` from one small httpx
+  client, at temperature 0, with a strict JSON schema wherever the output must
+  parse. The plane calls Nano to classify every request and Super to explain
+  each decision. The Expense Auditor calls Super to plan, to narrow a refused
+  request, to draft the grant request and to write the report. The Steward
+  Agent calls Ultra to review. Agents never hold a client: a LangGraph node gets
+  the model as a plain function through the graph's runtime context. Every call
+  has a deterministic fallback, and none of them decides access; the grant
+  table does. The README's "How the agents call Nemotron" lists all seven.
+- **Agents.** LangGraph 1.2 for the Expense Auditor (a `StateGraph` with a
+  bounded replan loop, `Command` routing and streamed events); three data
   agents that re-check every warrant before serving; the Steward Agent for the
   owner. FastAPI with server-sent events streams the trace live.
-- **One client, any tier.** One OpenAI-compatible client serves Token Factory
-  and self-hosted vLLM; which model serves a job is one line of config, with a
-  fallback when a tier is unreachable.
+- **One client, any tier.** The same client serves Token Factory and a
+  self-hosted vLLM endpoint; which model serves a job is one line of config,
+  with a fallback when a tier is unreachable.
 - **Rigor.** 115 tests. An adversarial review of our own code: 40 confirmed
   findings, all fixed. A classifier eval that reports recall first, because a
   missed entity is a security failure and an extra one is only an inconvenience.

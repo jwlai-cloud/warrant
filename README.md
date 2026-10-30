@@ -222,6 +222,53 @@ claims, 4 cross-department decisions, plan, explanations and review) takes about
 20 seconds. If Ultra is unreachable the review falls back to Super, and the
 console names the model that actually answered.
 
+### How the agents call Nemotron
+
+Every model call is one HTTPS request to Token Factory's OpenAI-compatible
+endpoint, made by one small client (`providers/openai_compat.py`, httpx, no
+LangChain). The tier picks the model; where a step needs structure, the request
+carries a strict JSON schema so the reply always parses:
+
+```python
+# providers/openai_compat.py (abridged)
+payload = {"model": cfg.model,                     # e.g. nvidia/Nemotron-3-Ultra-550b-a55b
+           "messages": [{"role": "system", "content": system},
+                        {"role": "user", "content": user}],
+           "temperature": 0.0}
+if json_schema:
+    payload["response_format"] = {"type": "json_schema", "json_schema":
+        {"name": "warrant_output", "schema": json_schema, "strict": True}}
+r = await client.post(f"{cfg.base_url}/chat/completions", json=payload)   # Token Factory
+```
+
+```yaml
+# config/warrant.yaml: which model serves a tier (kind: vllm would self-host it)
+tiers:
+  fast:   {kind: token_factory, model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B}
+  deep:   {kind: token_factory, model: nvidia/nemotron-3-super-120b-a12b}
+  review: {kind: token_factory, model: nvidia/Nemotron-3-Ultra-550b-a55b}
+fallback: {fast: deep, review: deep}      # an unreachable tier falls through
+```
+
+The agents never hold a client. A LangGraph node receives the model as a plain
+function, `llm(system, user, schema) -> str`, through the graph's runtime context,
+so the same graph runs against Nemotron in the console and against stubs in tests.
+These are all seven calls:
+
+| Call | Made by | Model | In | Out | If the model fails |
+|---|---|---|---|---|---|
+| Classify a request | WARRANT plane, `engine/classify.py`, **every request** | Nano | the purpose, the callee's declared data | JSON: the data entities it touches; intersected with what the callee holds, so it can only narrow | the callee's full declared data (the safe side) |
+| Explain a decision | WARRANT plane, `engine/justify.py` | Super | the decision's reasons, already computed | a sentence a person reads | a templated reason |
+| Plan the audit | Expense Auditor, `plan` node | Super | claim counts by category, the directory of agents and their data | JSON plan: callee, purpose, why (validated with Pydantic) | the default plan, cut to the data the claims need |
+| Ask for forgotten data / narrow a refused request | Expense Auditor, `replan` node | Super | the gap, or the refused purpose and the permitted data | a new one-sentence purpose | a templated purpose |
+| Draft a grant request | Expense Auditor, `escalate` node | Super | what is blocked, and why | the request the owner reads | a templated request |
+| Write the audit summary | Expense Auditor, `report` node | Super | the findings, as facts | the summary on the Runs page | a templated summary |
+| Review a grant request | Steward Agent, `agents/steward.py` | **Ultra** | facts from the audit log (was it really refused? declined before?) | JSON: approve / approve with conditions / decline, conditions, reasoning | rule-based recommendation |
+
+Nothing in the table decides access. The grant table does that, between the
+first two calls, with no model in it. A model failure is logged and the step
+falls back, so a live demo never stalls on a timeout.
+
 **Where Token Factory sped us up.** One API key gave us all three sizes with no
 GPU to provision, which mattered: Nebius refused every resource create on our
 tenant from 18 Sep, so the self-hosted vLLM path we built (same model, same
