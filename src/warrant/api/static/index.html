@@ -529,7 +529,7 @@
       <li><button type="button" data-view="approvals"><i></i>Approvals <span class="badge-n" id="navBadge" hidden>0</span></button></li>
       <li><button type="button" data-view="audit"><i></i>Audit</button></li>
     </ul>
-    <div class="rail-foot">decides &middot; <b>grant table</b><br>no model in the decision<br>explains &middot; <b>Nemotron</b><br>on Nebius Token Factory</div>
+    <div class="rail-foot">decides &middot; <b>grant table</b><br>no model in the decision<br>classifies &middot; <b>Nano</b><br>plans, explains &middot; <b>Super</b><br>reviews &middot; <b>Ultra</b><br>Nemotron 3 on Nebius<br>Token Factory</div>
   </nav>
 
   <main class="stage">
@@ -893,10 +893,21 @@
   async function loadHealth() {
     var r = await api("/v1/health");
     if (!r.ok) { $("tierText").textContent = "plane unreachable"; $("tierDot").className = "dot off"; return; }
-    var t = r.body.tiers || {};
-    var fast = t.fast || {};
-    $("tierText").textContent = "fast: " + (fast.kind || "?") + " · " + (fast.model || "").split("/").pop();
-    $("tierPill").title = JSON.stringify(t, null, 1);
+    // Every tier, in plain words: "Nemotron 3 Nano · Super · Ultra on Token
+    // Factory". The full model ids and providers are in the tooltip.
+    var t = r.body.tiers || {}, names = [], kinds = {};
+    ["fast", "deep", "review"].forEach(function (k) {
+      var x = t[k]; if (!x) return;
+      kinds[x.kind] = 1;
+      var m = String(x.model || "").split("/").pop(), size = (m.match(/(\d+)[bB]/) || [])[1];
+      var fam = (m.match(/nano|super|ultra/i) || [m])[0];
+      names.push(fam.charAt(0).toUpperCase() + fam.slice(1).toLowerCase());
+    });
+    var where = Object.keys(kinds).length === 1 && kinds.token_factory ? "on Token Factory"
+      : kinds.mock && Object.keys(kinds).length === 1 ? "(offline stubs)" : "";
+    $("tierText").textContent = "Nemotron 3 · " + names.join(" · ") + (where ? " " + where : "");
+    $("tierPill").title = ["fast", "deep", "review"].filter(function (k) { return t[k]; }).map(function (k) {
+      return k + ": " + t[k].kind + " · " + t[k].model; }).join("\n");
   }
 
   /* ---- departments (strip edges, card edges) ---- */
